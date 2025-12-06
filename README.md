@@ -22,12 +22,36 @@ wemux captures audio from the Windows system default output device using WASAPI 
 ## Requirements
 
 - Windows 10 or later
-- Rust 1.70+ (for building)
 - Multiple HDMI audio outputs
 
 ## Installation
 
+### Quick Install (Recommended)
+
+Run in PowerShell:
+
+```powershell
+irm https://raw.githubusercontent.com/superyngo/wemux/main/install.ps1 | iex
+```
+
+To uninstall:
+
+```powershell
+irm https://raw.githubusercontent.com/superyngo/wemux/main/install.ps1 | iex -Uninstall
+```
+
+### Manual Download
+
+Download the latest release from [GitHub Releases](https://github.com/superyngo/wemux/releases):
+
+| Platform | Architecture | Download |
+|----------|--------------|----------|
+| Windows | x86_64 | `wemux-windows-x86_64.exe` |
+| Windows | i686 | `wemux-windows-i686.exe` |
+
 ### From Source
+
+Requires Rust 1.70+
 
 ```bash
 git clone https://github.com/superyngo/wemux.git

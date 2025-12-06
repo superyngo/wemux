@@ -2,6 +2,7 @@
 name = "wemux"
 version = "0.1.0"
 edition = "2021"
+authors = ["wen"]
 description = "Windows Multi-HDMI Audio Sync - Duplicate system audio to multiple HDMI devices"
 license = "MIT"
 

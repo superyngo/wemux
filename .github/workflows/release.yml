@@ -1,0 +1,174 @@
+name: Release Build
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+  actions: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    continue-on-error: false
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Windows builds only (wemux is Windows-specific)
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact_name: wemux.exe
+            asset_name: wemux-windows-x86_64.exe
+            rustflags: "-C target-feature=+crt-static"
+            opt_level: "3"
+            lto: "thin"
+            strip: "false"
+            codegen_units: "16"
+            panic: "unwind"
+          - os: windows-latest
+            target: i686-pc-windows-msvc
+            artifact_name: wemux.exe
+            asset_name: wemux-windows-i686.exe
+            rustflags: "-C target-feature=+crt-static"
+            opt_level: "3"
+            lto: "thin"
+            strip: "false"
+            codegen_units: "16"
+            panic: "unwind"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Build (Windows)
+        run: cargo build --release --target ${{ matrix.target }}
+        env:
+          RUSTFLAGS: ${{ matrix.rustflags }}
+          CARGO_PROFILE_RELEASE_OPT_LEVEL: ${{ matrix.opt_level }}
+          CARGO_PROFILE_RELEASE_LTO: ${{ matrix.lto }}
+          CARGO_PROFILE_RELEASE_STRIP: ${{ matrix.strip }}
+          CARGO_PROFILE_RELEASE_CODEGEN_UNITS: ${{ matrix.codegen_units }}
+          CARGO_PROFILE_RELEASE_PANIC: ${{ matrix.panic }}
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset_name }}
+          path: target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Display structure
+        run: |
+          echo "Current directory structure:"
+          ls -la
+          echo "Artifacts directory:"
+          ls -la artifacts/
+          echo "Looking for artifacts:"
+          find artifacts -type f \( -name "*.tar.gz" -o -name "*.zip" -o -name "*.exe" \)
+
+      - name: Prepare release files
+        run: |
+          mkdir -p release_files
+          # Handle Windows exe files by renaming with platform suffix
+          for dir in artifacts/*; do
+            if [ -d "$dir" ] && [[ "$dir" == *"windows"* ]]; then
+              asset_name=$(basename "$dir")
+              exe_file="$dir/wemux.exe"
+              if [ -f "$exe_file" ]; then
+                cp "$exe_file" "release_files/$asset_name"
+              fi
+            fi
+          done
+          echo "Files in release_files:"
+          ls -la release_files/
+
+      - name: Generate checksums
+        run: |
+          cd release_files
+          if [ -n "$(ls -A)" ]; then
+            sha256sum * > SHA256SUMS
+            echo "Checksums generated:"
+            cat SHA256SUMS
+          else
+            echo "No files found in release_files directory!"
+            exit 1
+          fi
+
+      - name: Get tag message
+        id: tag_message
+        run: |
+          TAG_NAME=${GITHUB_REF#refs/tags/}
+          echo "Tag name: $TAG_NAME"
+
+          TAG_MESSAGE=$(git tag -l --format='%(contents)' "$TAG_NAME")
+
+          if [ -z "$TAG_MESSAGE" ]; then
+            TAG_MESSAGE="Release $TAG_NAME"
+          fi
+
+          echo "message<<EOF" >> $GITHUB_OUTPUT
+          echo "$TAG_MESSAGE" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+          echo "Tag message retrieved successfully"
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: release_files/*
+          draft: false
+          prerelease: false
+          body: |
+            ${{ steps.tag_message.outputs.message }}
+
+            ---
+
+            ## 📦 Downloads
+
+            | Platform | Architecture | Download |
+            |----------|--------------|----------|
+            | Windows | x86_64 | `wemux-windows-x86_64.exe` |
+            | Windows | i686 | `wemux-windows-i686.exe` |
+
+            ## 🚀 Quick Install (PowerShell)
+
+            ```powershell
+            irm https://raw.githubusercontent.com/superyngo/wemux/main/install.ps1 | iex
+            ```
+
+            ## 🔒 File Verification
+
+            Use the SHA256SUMS file to verify the integrity of downloaded files.
+
+            ---
+
+            ## 📝 Auto-generated Changelog
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
