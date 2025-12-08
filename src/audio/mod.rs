@@ -4,11 +4,13 @@ mod buffer;
 mod capture;
 mod engine;
 mod renderer;
+mod volume;
 
 pub use buffer::RingBuffer;
 pub use capture::LoopbackCapture;
 pub use engine::{AudioEngine, EngineConfig, EngineState};
 pub use renderer::{HdmiRenderer, RendererState};
+pub use volume::{apply_volume_f32, VolumeLevel, VolumeTracker};
 
 /// Audio format information
 #[derive(Debug, Clone)]

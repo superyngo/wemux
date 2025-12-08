@@ -2,4 +2,4 @@
 
 mod args;
 
-pub use args::{Args, Command};
+pub use args::{Args, Command, ServiceAction};

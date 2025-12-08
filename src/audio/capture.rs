@@ -196,7 +196,7 @@ impl LoopbackCapture {
             );
 
             Ok(CapturedFrames {
-                capture_client: &self.capture_client,
+                capture_client: Some(&self.capture_client),
                 data: if is_silent {
                     None
                 } else {
@@ -228,7 +228,7 @@ impl Drop for LoopbackCapture {
 
 /// Captured audio frames with automatic buffer release
 pub struct CapturedFrames<'a> {
-    capture_client: &'a IAudioCaptureClient,
+    capture_client: Option<&'a IAudioCaptureClient>,
     data: Option<&'a [u8]>,
     num_frames: u32,
     is_silent: bool,
@@ -236,11 +236,9 @@ pub struct CapturedFrames<'a> {
 }
 
 impl<'a> CapturedFrames<'a> {
-    #[allow(invalid_value)]
     fn empty() -> Self {
         Self {
-            // SAFETY: This is only used when data is None and will never be dereferenced
-            capture_client: unsafe { std::mem::zeroed() },
+            capture_client: None,
             data: None,
             num_frames: 0,
             is_silent: true,
@@ -290,8 +288,10 @@ impl<'a> CapturedFrames<'a> {
 impl<'a> Drop for CapturedFrames<'a> {
     fn drop(&mut self) {
         if self.num_frames > 0 {
-            unsafe {
-                let _ = self.capture_client.ReleaseBuffer(self.num_frames);
+            if let Some(capture_client) = self.capture_client {
+                unsafe {
+                    let _ = capture_client.ReleaseBuffer(self.num_frames);
+                }
             }
         }
     }

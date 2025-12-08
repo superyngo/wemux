@@ -66,6 +66,33 @@ pub enum Command {
         /// Device ID to show info for
         device_id: String,
     },
+
+    /// Windows Service management
+    Service {
+        /// Service action to perform
+        #[command(subcommand)]
+        action: ServiceAction,
+    },
+}
+
+/// Service management actions
+#[derive(Subcommand, Debug)]
+pub enum ServiceAction {
+    /// Install the Windows service
+    Install,
+
+    /// Uninstall the Windows service
+    Uninstall,
+
+    /// Show service status
+    Status,
+
+    /// Generate a sample configuration file
+    Config {
+        /// Output path for config file (default: wemux.toml)
+        #[arg(short, long, default_value = "wemux.toml")]
+        output: String,
+    },
 }
 
 impl Args {

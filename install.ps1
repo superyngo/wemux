@@ -19,6 +19,7 @@ $APP_NAME = "wemux"
 $REPO = "superyngo/wemux"
 $INSTALL_DIR = "$env:LOCALAPPDATA\Programs\$APP_NAME"
 $BIN_PATH = "$INSTALL_DIR\$APP_NAME.exe"
+$SERVICE_BIN_PATH = "$INSTALL_DIR\$APP_NAME-service.exe"
 
 function Get-LatestRelease {
     try {
@@ -61,9 +62,12 @@ function Install-Wemux {
     $arch = Get-Architecture
     Write-Info "Detected architecture: $arch"
 
-    # Find download URL for Windows
+    # Find download URLs for Windows
     $assetName = "$APP_NAME-windows-$arch.exe"
+    $serviceAssetName = "$APP_NAME-service-windows-$arch.exe"
+
     $asset = $release.assets | Where-Object { $_.name -eq $assetName }
+    $serviceAsset = $release.assets | Where-Object { $_.name -eq $serviceAssetName }
 
     if (-not $asset) {
         Write-Error "Could not find Windows release asset"
@@ -83,22 +87,34 @@ function Install-Wemux {
         New-Item -ItemType Directory -Path $INSTALL_DIR -Force | Out-Null
     }
 
-    # Download binary directly
+    # Download main binary
     Write-Info "Downloading $APP_NAME..."
 
     $ProgressPreference = 'SilentlyContinue'
     try {
         Invoke-WebRequest -Uri $downloadUrl -OutFile $BIN_PATH -UseBasicParsing
-        $ProgressPreference = 'Continue'
-        Write-Success "Downloaded successfully!"
+        Write-Success "Downloaded $APP_NAME.exe successfully!"
     } catch {
         $ProgressPreference = 'Continue'
         Write-Error "Download failed: $_"
         exit 1
     }
 
+    # Download service binary if available
+    if ($serviceAsset) {
+        Write-Info "Downloading $APP_NAME-service..."
+        try {
+            Invoke-WebRequest -Uri $serviceAsset.browser_download_url -OutFile $SERVICE_BIN_PATH -UseBasicParsing
+            Write-Success "Downloaded $APP_NAME-service.exe successfully!"
+        } catch {
+            Write-Warning "Failed to download service binary: $_"
+            Write-Warning "Windows service functionality will not be available."
+        }
+    }
+    $ProgressPreference = 'Continue'
+
     Write-Info "Installed to: $INSTALL_DIR"
-    Write-Success "Binary installed successfully!"
+    Write-Success "Binaries installed successfully!"
 
     # Add to PATH
     $userPath = [Environment]::GetEnvironmentVariable("PATH", "User")
@@ -124,8 +140,9 @@ function Install-Wemux {
     Write-Info "Usage:"
     Write-Info "  $APP_NAME list              - List audio devices"
     Write-Info "  $APP_NAME start             - Start audio sync"
+    Write-Info "  $APP_NAME service install   - Install Windows service"
+    Write-Info "  $APP_NAME service status    - Check service status"
     Write-Info "  $APP_NAME --help            - Show help"
-    Write-Info "  $APP_NAME --version         - Show version"
     Write-Info ""
     Write-Warning "Note: You may need to restart your terminal for PATH changes to take effect."
     Write-Info ""
@@ -137,13 +154,20 @@ function Uninstall-Wemux {
     Write-Info "=== wemux Uninstallation Script ==="
     Write-Info ""
 
-    # Remove binary
+    # Remove main binary
     if (Test-Path $BIN_PATH) {
-        Write-Info "Removing binary..."
+        Write-Info "Removing $APP_NAME.exe..."
         Remove-Item $BIN_PATH -Force
-        Write-Success "Binary removed"
+        Write-Success "Main binary removed"
     } else {
-        Write-Info "Binary not found (already removed?)"
+        Write-Info "Main binary not found (already removed?)"
+    }
+
+    # Remove service binary
+    if (Test-Path $SERVICE_BIN_PATH) {
+        Write-Info "Removing $APP_NAME-service.exe..."
+        Remove-Item $SERVICE_BIN_PATH -Force
+        Write-Success "Service binary removed"
     }
 
     # Remove installation directory if empty

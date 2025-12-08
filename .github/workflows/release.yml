@@ -53,7 +53,7 @@ jobs:
           targets: ${{ matrix.target }}
 
       - name: Build (Windows)
-        run: cargo build --release --target ${{ matrix.target }}
+        run: cargo build --release --features service --target ${{ matrix.target }}
         env:
           RUSTFLAGS: ${{ matrix.rustflags }}
           CARGO_PROFILE_RELEASE_OPT_LEVEL: ${{ matrix.opt_level }}
@@ -62,11 +62,17 @@ jobs:
           CARGO_PROFILE_RELEASE_CODEGEN_UNITS: ${{ matrix.codegen_units }}
           CARGO_PROFILE_RELEASE_PANIC: ${{ matrix.panic }}
 
-      - name: Upload artifacts
+      - name: Upload wemux artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.asset_name }}
-          path: target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
+          path: target/${{ matrix.target }}/release/wemux.exe
+
+      - name: Upload wemux-service artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wemux-service-${{ matrix.target }}
+          path: target/${{ matrix.target }}/release/wemux-service.exe
 
   release:
     name: Create Release
@@ -97,11 +103,26 @@ jobs:
           mkdir -p release_files
           # Handle Windows exe files by renaming with platform suffix
           for dir in artifacts/*; do
-            if [ -d "$dir" ] && [[ "$dir" == *"windows"* ]]; then
-              asset_name=$(basename "$dir")
-              exe_file="$dir/wemux.exe"
-              if [ -f "$exe_file" ]; then
-                cp "$exe_file" "release_files/$asset_name"
+            if [ -d "$dir" ]; then
+              dir_name=$(basename "$dir")
+              # Handle wemux.exe
+              if [[ "$dir_name" == *"windows"* ]] && [[ "$dir_name" != *"service"* ]]; then
+                exe_file="$dir/wemux.exe"
+                if [ -f "$exe_file" ]; then
+                  cp "$exe_file" "release_files/$dir_name"
+                fi
+              fi
+              # Handle wemux-service.exe
+              if [[ "$dir_name" == *"wemux-service"* ]]; then
+                exe_file="$dir/wemux-service.exe"
+                if [ -f "$exe_file" ]; then
+                  # Extract arch from dir name (e.g., wemux-service-x86_64-pc-windows-msvc)
+                  if [[ "$dir_name" == *"x86_64"* ]]; then
+                    cp "$exe_file" "release_files/wemux-service-windows-x86_64.exe"
+                  elif [[ "$dir_name" == *"i686"* ]]; then
+                    cp "$exe_file" "release_files/wemux-service-windows-i686.exe"
+                  fi
+                fi
               fi
             fi
           done
@@ -151,10 +172,10 @@ jobs:
 
             ## 📦 Downloads
 
-            | Platform | Architecture | Download |
-            |----------|--------------|----------|
-            | Windows | x86_64 | `wemux-windows-x86_64.exe` |
-            | Windows | i686 | `wemux-windows-i686.exe` |
+            | Platform | Architecture | CLI | Windows Service |
+            |----------|--------------|-----|-----------------|
+            | Windows | x86_64 | `wemux-windows-x86_64.exe` | `wemux-service-windows-x86_64.exe` |
+            | Windows | i686 | `wemux-windows-i686.exe` | `wemux-service-windows-i686.exe` |
 
             ## 🚀 Quick Install (PowerShell)
 

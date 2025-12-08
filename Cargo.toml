@@ -6,10 +6,24 @@ authors = ["wen"]
 description = "Windows Multi-HDMI Audio Sync - Duplicate system audio to multiple HDMI devices"
 license = "MIT"
 
+[[bin]]
+name = "wemux"
+path = "src/main.rs"
+
+[[bin]]
+name = "wemux-service"
+path = "src/bin/wemux-service.rs"
+required-features = ["service"]
+
+[features]
+default = []
+service = ["windows-service"]
+
 [dependencies]
 # Windows API bindings
 windows = { version = "0.58", features = [
     "Win32_Media_Audio",
+    "Win32_Media_Audio_Endpoints",
     "Win32_System_Com",
     "Win32_System_Com_StructuredStorage",
     "Win32_System_Variant",
@@ -37,9 +51,14 @@ thiserror = "1"
 parking_lot = "0.12"
 crossbeam-channel = "0.5"
 
+# Configuration
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"
+
 # Signal handling
 [target.'cfg(windows)'.dependencies]
 ctrlc = "3"
+windows-service = { version = "0.7", optional = true }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }

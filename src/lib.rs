@@ -23,6 +23,7 @@ pub mod audio;
 pub mod config;
 pub mod device;
 pub mod error;
+pub mod service;
 pub mod sync;
 
 pub use error::{Result, WemuxError};
