@@ -1,21 +1,21 @@
 //! WASAPI loopback capture from system audio output
 
 use crate::audio::AudioFormat;
-use crate::error::{Result, WemuxError};
+use crate::error::Result;
 use std::ptr;
 use tracing::{debug, info, trace};
 use windows::{
     core::PCWSTR,
     Win32::{
-        Foundation::HANDLE,
+        Foundation::{HANDLE, WAIT_OBJECT_0},
         Media::Audio::{
             eConsole, eRender, IAudioCaptureClient, IAudioClient, IMMDevice, IMMDeviceEnumerator,
             MMDeviceEnumerator, AUDCLNT_BUFFERFLAGS_SILENT, AUDCLNT_SHAREMODE_SHARED,
-            AUDCLNT_STREAMFLAGS_EVENTCALLBACK, AUDCLNT_STREAMFLAGS_LOOPBACK, WAVEFORMATEX,
+            AUDCLNT_STREAMFLAGS_EVENTCALLBACK, AUDCLNT_STREAMFLAGS_LOOPBACK,
         },
         System::{
             Com::{CoCreateInstance, CoInitializeEx, CLSCTX_ALL, COINIT_MULTITHREADED},
-            Threading::{CreateEventW, WaitForSingleObject, WAIT_OBJECT_0},
+            Threading::{CreateEventW, WaitForSingleObject},
         },
     },
 };
@@ -29,6 +29,10 @@ pub struct LoopbackCapture {
     buffer_frames: u32,
     started: bool,
 }
+
+// SAFETY: LoopbackCapture is Send because WASAPI uses MTA (Multi-Threaded Apartment)
+// and each thread initializes COM with COINIT_MULTITHREADED
+unsafe impl Send for LoopbackCapture {}
 
 impl LoopbackCapture {
     /// Create a loopback capture from the system default render device
@@ -154,7 +158,7 @@ impl LoopbackCapture {
     ///
     /// Returns the audio data as a byte slice.
     /// The data is only valid until the next call to `read_frames` or `release_buffer`.
-    pub fn read_frames(&self, timeout_ms: u32) -> Result<CapturedFrames> {
+    pub fn read_frames(&self, timeout_ms: u32) -> Result<CapturedFrames<'_>> {
         unsafe {
             // Wait for buffer event
             let wait_result = WaitForSingleObject(self.event, timeout_ms);
@@ -232,8 +236,10 @@ pub struct CapturedFrames<'a> {
 }
 
 impl<'a> CapturedFrames<'a> {
+    #[allow(invalid_value)]
     fn empty() -> Self {
         Self {
+            // SAFETY: This is only used when data is None and will never be dereferenced
             capture_client: unsafe { std::mem::zeroed() },
             data: None,
             num_frames: 0,

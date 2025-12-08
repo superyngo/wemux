@@ -15,17 +15,11 @@ pub enum WemuxError {
 
     /// Device operation error
     #[error("Device '{device_id}' error: {message}")]
-    DeviceError {
-        device_id: String,
-        message: String,
-    },
+    DeviceError { device_id: String, message: String },
 
     /// Audio format mismatch between devices
     #[error("Format mismatch - expected: {expected}, actual: {actual}")]
-    FormatMismatch {
-        expected: String,
-        actual: String,
-    },
+    FormatMismatch { expected: String, actual: String },
 
     /// Buffer overrun - capture producing faster than render consuming
     #[error("Buffer overrun: capture producing faster than render consuming")]
@@ -72,9 +66,7 @@ impl WemuxError {
     pub fn is_recoverable(&self) -> bool {
         matches!(
             self,
-            WemuxError::DeviceError { .. }
-                | WemuxError::BufferOverrun
-                | WemuxError::BufferUnderrun
+            WemuxError::DeviceError { .. } | WemuxError::BufferOverrun | WemuxError::BufferUnderrun
         )
     }
 }

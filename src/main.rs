@@ -19,7 +19,10 @@ fn main() -> Result<()> {
 
     // Execute command
     match args.command.unwrap_or_default() {
-        Command::List { hdmi_only, show_ids } => cmd_list(hdmi_only, show_ids),
+        Command::List {
+            hdmi_only,
+            show_ids,
+        } => cmd_list(hdmi_only, show_ids),
         Command::Start {
             devices,
             exclude,
@@ -33,8 +36,8 @@ fn main() -> Result<()> {
 fn init_logging(args: &Args) -> Result<()> {
     let level = args.log_level();
 
-    let filter = EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| EnvFilter::new(level.to_string()));
+    let filter =
+        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(level.to_string()));
 
     let subscriber = tracing_subscriber::fmt()
         .with_env_filter(filter)

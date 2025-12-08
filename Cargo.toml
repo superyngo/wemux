@@ -1,6 +1,6 @@
 [package]
 name = "wemux"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 authors = ["wen"]
 description = "Windows Multi-HDMI Audio Sync - Duplicate system audio to multiple HDMI devices"
@@ -20,6 +20,7 @@ windows = { version = "0.58", features = [
     "Win32_UI_Shell_PropertiesSystem",
     "implement",
 ]}
+windows-core = "0.58"
 
 # CLI
 clap = { version = "4", features = ["derive"] }
@@ -43,7 +44,5 @@ ctrlc = "3"
 [dev-dependencies]
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 
-[profile.release]
-lto = true
-codegen-units = 1
-strip = true
+# Release profile configuration is handled via workflow environment variables
+# See .github/workflows/release.yml for configuration

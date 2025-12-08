@@ -7,12 +7,16 @@ use tracing::{debug, info, trace, warn};
 use windows::{
     core::PCWSTR,
     Win32::{
-        Foundation::HANDLE,
+        Devices::FunctionDiscovery::PKEY_Device_FriendlyName,
+        Foundation::{HANDLE, WAIT_OBJECT_0},
         Media::Audio::{
             IAudioClient, IAudioRenderClient, IMMDevice, AUDCLNT_SHAREMODE_SHARED,
-            AUDCLNT_STREAMFLAGS_EVENTCALLBACK, WAVEFORMATEX,
+            AUDCLNT_STREAMFLAGS_EVENTCALLBACK,
         },
-        System::Threading::{CreateEventW, WaitForSingleObject, WAIT_OBJECT_0},
+        System::{
+            Com::STGM_READ,
+            Threading::{CreateEventW, WaitForSingleObject},
+        },
     },
 };
 
@@ -41,6 +45,10 @@ pub struct HdmiRenderer {
     state: RendererState,
 }
 
+// SAFETY: HdmiRenderer is Send because WASAPI uses MTA (Multi-Threaded Apartment)
+// and each thread initializes COM with COINIT_MULTITHREADED
+unsafe impl Send for HdmiRenderer {}
+
 impl HdmiRenderer {
     /// Create a new renderer for the given device
     pub fn new(device: &IMMDevice) -> Result<Self> {
@@ -54,7 +62,8 @@ impl HdmiRenderer {
             };
 
             // Get device name
-            let device_name = Self::get_device_name(device).unwrap_or_else(|| "Unknown".to_string());
+            let device_name =
+                Self::get_device_name(device).unwrap_or_else(|| "Unknown".to_string());
 
             debug!("Creating renderer for: {} ({})", device_name, device_id);
 
@@ -121,19 +130,23 @@ impl HdmiRenderer {
 
     fn get_device_name(device: &IMMDevice) -> Option<String> {
         unsafe {
-            let store = device
-                .OpenPropertyStore(windows::Win32::System::Com::StructuredStorage::STGM_READ)
-                .ok()?;
-            let prop = store
-                .GetValue(&windows::Win32::Devices::FunctionDiscovery::PKEY_Device_FriendlyName)
-                .ok()?;
+            let store = device.OpenPropertyStore(STGM_READ).ok()?;
+            let prop = store.GetValue(&PKEY_Device_FriendlyName).ok()?;
 
-            // Extract string from PROPVARIANT
-            if prop.Anonymous.Anonymous.vt == windows::Win32::System::Variant::VT_LPWSTR {
-                let pwsz = prop.Anonymous.Anonymous.Anonymous.pwszVal;
-                if !pwsz.0.is_null() {
-                    return PCWSTR(pwsz.0).to_string().ok();
-                }
+            // Extract string from PROPVARIANT using repr(C) struct
+            #[repr(C)]
+            struct PropVariantRaw {
+                vt: u16,
+                w_reserved1: u16,
+                w_reserved2: u16,
+                w_reserved3: u16,
+                data: *const u16,
+            }
+
+            let raw = &*((&prop) as *const windows_core::PROPVARIANT as *const PropVariantRaw);
+            // VT_LPWSTR = 31
+            if raw.vt == 31 && !raw.data.is_null() {
+                return PCWSTR(raw.data).to_string().ok();
             }
             None
         }
@@ -276,7 +289,7 @@ impl HdmiRenderer {
     /// Get current buffer position for synchronization
     pub fn get_buffer_position(&self) -> Result<u64> {
         unsafe {
-            let mut position: u64 = 0;
+            let mut _position: u64 = 0;
             let mut _qpc: u64 = 0;
 
             // Note: This requires AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM to be useful

@@ -16,7 +16,9 @@ impl HdmiFilter {
     /// Check if a device name indicates an HDMI device
     pub fn is_hdmi_device(name: &str) -> bool {
         let name_lower = name.to_lowercase();
-        HDMI_KEYWORDS.iter().any(|keyword| name_lower.contains(keyword))
+        HDMI_KEYWORDS
+            .iter()
+            .any(|keyword| name_lower.contains(keyword))
     }
 
     /// Check if a device ID indicates an HDMI device
@@ -35,7 +37,9 @@ mod tests {
     fn test_hdmi_detection() {
         assert!(HdmiFilter::is_hdmi_device("NVIDIA High Definition Audio"));
         assert!(HdmiFilter::is_hdmi_device("Intel(R) Display Audio"));
-        assert!(HdmiFilter::is_hdmi_device("AMD High Definition Audio Device"));
+        assert!(HdmiFilter::is_hdmi_device(
+            "AMD High Definition Audio Device"
+        ));
         assert!(HdmiFilter::is_hdmi_device("HDMI Output"));
         assert!(!HdmiFilter::is_hdmi_device("Realtek Audio"));
         assert!(!HdmiFilter::is_hdmi_device("Speakers"));

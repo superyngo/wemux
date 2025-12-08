@@ -5,14 +5,16 @@ use crate::error::{Result, WemuxError};
 use std::fmt;
 use tracing::{debug, info};
 use windows::{
-    core::PCWSTR,
+    core::{PCWSTR, PROPVARIANT},
     Win32::{
         Devices::FunctionDiscovery::PKEY_Device_FriendlyName,
         Media::Audio::{
             eConsole, eRender, IMMDevice, IMMDeviceEnumerator, MMDeviceEnumerator,
             DEVICE_STATE_ACTIVE,
         },
-        System::Com::{CoCreateInstance, CoInitializeEx, CLSCTX_ALL, COINIT_MULTITHREADED},
+        System::Com::{
+            CoCreateInstance, CoInitializeEx, CLSCTX_ALL, COINIT_MULTITHREADED, STGM_READ,
+        },
     },
 };
 
@@ -85,7 +87,9 @@ impl DeviceEnumerator {
             match enumerator.GetDefaultAudioEndpoint(eRender, eConsole) {
                 Ok(device) => {
                     let id_ptr = device.GetId()?;
-                    let id = PCWSTR(id_ptr.0).to_string()?;
+                    let id = PCWSTR(id_ptr.0).to_string().map_err(|e| {
+                        WemuxError::InvalidConfig(format!("Invalid device ID string: {}", e))
+                    })?;
                     windows::Win32::System::Com::CoTaskMemFree(Some(id_ptr.0 as *const _));
                     Ok(Some(id))
                 }
@@ -159,20 +163,23 @@ impl DeviceEnumerator {
         unsafe {
             // Get device ID
             let id_ptr = device.GetId()?;
-            let id = PCWSTR(id_ptr.0).to_string()?;
+            let id = PCWSTR(id_ptr.0).to_string().map_err(|e| {
+                WemuxError::InvalidConfig(format!("Invalid device ID string: {}", e))
+            })?;
             windows::Win32::System::Com::CoTaskMemFree(Some(id_ptr.0 as *const _));
 
             // Get friendly name from property store
-            let store = device.OpenPropertyStore(windows::Win32::System::Com::StructuredStorage::STGM_READ)?;
+            let store = device.OpenPropertyStore(STGM_READ)?;
             let name_prop = store.GetValue(&PKEY_Device_FriendlyName)?;
 
-            let name = prop_variant_to_string(&name_prop).unwrap_or_else(|| "Unknown Device".to_string());
+            let name =
+                prop_variant_to_string(&name_prop).unwrap_or_else(|| "Unknown Device".to_string());
 
             // Check if HDMI
             let is_hdmi = HdmiFilter::is_hdmi_device(&name) || HdmiFilter::is_hdmi_device_id(&id);
 
             // Check if default
-            let is_default = self.default_device_id.as_ref().map_or(false, |default_id| default_id == &id);
+            let is_default = self.default_device_id.as_ref() == Some(&id);
 
             Ok(DeviceInfo {
                 id,
@@ -191,14 +198,23 @@ impl DeviceEnumerator {
 }
 
 /// Extract string from PROPVARIANT
-fn prop_variant_to_string(prop: &windows::Win32::System::Com::StructuredStorage::PROPVARIANT) -> Option<String> {
+fn prop_variant_to_string(prop: &PROPVARIANT) -> Option<String> {
     unsafe {
+        // Use repr(C) compatibility to access the internal structure
+        // PROPVARIANT layout: vt (u16) + reserved fields + union data
+        #[repr(C)]
+        struct PropVariantRaw {
+            vt: u16,
+            w_reserved1: u16,
+            w_reserved2: u16,
+            w_reserved3: u16,
+            data: *const u16, // Simplified - we only care about pwszVal
+        }
+
+        let raw = &*(prop as *const PROPVARIANT as *const PropVariantRaw);
         // Check if it's a string type (VT_LPWSTR = 31)
-        if prop.Anonymous.Anonymous.vt == windows::Win32::System::Variant::VT_LPWSTR {
-            let pwsz = prop.Anonymous.Anonymous.Anonymous.pwszVal;
-            if !pwsz.0.is_null() {
-                return PCWSTR(pwsz.0).to_string().ok();
-            }
+        if raw.vt == 31 && !raw.data.is_null() {
+            return PCWSTR(raw.data).to_string().ok();
         }
         None
     }

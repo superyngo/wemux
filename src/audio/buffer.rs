@@ -74,6 +74,7 @@ impl RingBuffer {
         // Don't read more than available or more than buffer size
         let to_read = buf.len().min(available).min(self.capacity);
 
+        #[allow(clippy::needless_range_loop)]
         for i in 0..to_read {
             let pos = (*read_pos + i) & self.mask;
             // SAFETY: pos is always valid due to mask
@@ -140,6 +141,7 @@ impl ReaderState {
     }
 
     /// Get current read position
+    #[allow(dead_code)]
     pub fn position(&self) -> usize {
         self.read_pos
     }

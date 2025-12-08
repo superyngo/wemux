@@ -7,11 +7,13 @@ use std::sync::Arc;
 use tracing::{debug, info, warn};
 use windows::{
     core::{implement, PCWSTR},
-    Win32::Media::Audio::{
-        EDataFlow, ERole, IMMDeviceEnumerator, IMMNotificationClient,
-        IMMNotificationClient_Impl, MMDeviceEnumerator,
+    Win32::{
+        Media::Audio::{
+            EDataFlow, ERole, IMMDeviceEnumerator, IMMNotificationClient,
+            IMMNotificationClient_Impl, MMDeviceEnumerator, DEVICE_STATE,
+        },
+        System::Com::{CoCreateInstance, CoInitializeEx, CLSCTX_ALL, COINIT_MULTITHREADED},
     },
-    System::Com::{CoCreateInstance, CoInitializeEx, CLSCTX_ALL, COINIT_MULTITHREADED},
 };
 
 /// Events from device monitoring
@@ -28,14 +30,9 @@ pub enum DeviceEvent {
         device_id: String,
     },
     /// Device state changed
-    StateChanged {
-        device_id: String,
-        new_state: u32,
-    },
+    StateChanged { device_id: String, new_state: u32 },
     /// Device property changed
-    PropertyChanged {
-        device_id: String,
-    },
+    PropertyChanged { device_id: String },
 }
 
 /// Device monitor for hot-plug detection
@@ -82,13 +79,13 @@ impl IMMNotificationClient_Impl for NotificationCallback_Impl {
     fn OnDeviceStateChanged(
         &self,
         pwstrdeviceid: &PCWSTR,
-        dwnewstate: u32,
+        dwnewstate: DEVICE_STATE,
     ) -> windows::core::Result<()> {
         if let Ok(device_id) = unsafe { pwstrdeviceid.to_string() } {
-            debug!("Device state changed: {} -> {}", device_id, dwnewstate);
+            debug!("Device state changed: {} -> {}", device_id, dwnewstate.0);
             let event = DeviceEvent::StateChanged {
                 device_id,
-                new_state: dwnewstate,
+                new_state: dwnewstate.0,
             };
             self.send_event(event);
         }

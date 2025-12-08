@@ -1,17 +1,17 @@
 //! Audio engine - main controller coordinating capture and renderers
 
-use crate::audio::{AudioFormat, HdmiRenderer, LoopbackCapture, RendererState, RingBuffer};
 use crate::audio::buffer::ReaderState;
+use crate::audio::{AudioFormat, HdmiRenderer, LoopbackCapture, RingBuffer};
 use crate::device::{DeviceEnumerator, DeviceInfo};
 use crate::error::{Result, WemuxError};
 use crate::sync::ClockSync;
-use crossbeam_channel::{bounded, Receiver, Sender};
+use crossbeam_channel::{bounded, Sender};
 use parking_lot::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
-use tracing::{debug, error, info, warn};
+use tracing::{error, info, warn};
 
 /// Engine configuration
 #[derive(Debug, Clone)]
@@ -107,7 +107,7 @@ impl AudioEngine {
         self.stop_flag.store(false, Ordering::SeqCst);
 
         // Create loopback capture
-        let mut capture = LoopbackCapture::from_default_device()?;
+        let capture = LoopbackCapture::from_default_device()?;
         let format = capture.format().clone();
         self.format = Some(format.clone());
 
@@ -135,7 +135,7 @@ impl AudioEngine {
         let clock_sync = Arc::new(Mutex::new(ClockSync::new(format.sample_rate)));
 
         // Create command channel
-        let (cmd_tx, cmd_rx) = bounded::<EngineCommand>(16);
+        let (cmd_tx, _cmd_rx) = bounded::<EngineCommand>(16);
         self.command_tx = Some(cmd_tx);
 
         // Start capture thread
@@ -167,7 +167,13 @@ impl AudioEngine {
             let render_format = format.clone();
 
             let handle = thread::spawn(move || {
-                render_thread(renderer, render_buffer, render_stop, render_clock, render_format);
+                render_thread(
+                    renderer,
+                    render_buffer,
+                    render_stop,
+                    render_clock,
+                    render_format,
+                );
             });
 
             self.render_handles.push(handle);
@@ -222,7 +228,10 @@ impl AudioEngine {
             let all_devices = enumerator.enumerate_all_devices()?;
             all_devices
                 .into_iter()
-                .filter(|d| ids.iter().any(|id| d.id.contains(id) || d.name.contains(id)))
+                .filter(|d| {
+                    ids.iter()
+                        .any(|id| d.id.contains(id) || d.name.contains(id))
+                })
                 .collect()
         } else {
             // Auto-detect HDMI devices
@@ -258,7 +267,7 @@ fn capture_thread(
     mut capture: LoopbackCapture,
     buffer: Arc<RingBuffer>,
     stop_flag: Arc<AtomicBool>,
-    state: Arc<Mutex<EngineState>>,
+    _state: Arc<Mutex<EngineState>>,
 ) {
     info!("Capture thread started");
 
@@ -311,7 +320,8 @@ fn render_thread(
     let mut render_buffer = vec![0u8; format.buffer_size_for_ms(50)];
 
     // Pre-fill with silence to establish latency buffer
-    let _ = renderer.write_silence(format.buffer_size_for_ms(20) as u32 / format.block_align as u32);
+    let _ =
+        renderer.write_silence(format.buffer_size_for_ms(20) as u32 / format.block_align as u32);
 
     while !stop_flag.load(Ordering::Relaxed) {
         // Check for buffer underrun/overrun
@@ -347,7 +357,7 @@ fn render_thread(
             };
 
             match renderer.write_frames(adjusted_data, 50) {
-                Ok(frames) => {
+                Ok(_frames) => {
                     // Update clock sync
                     if let Ok(pos) = renderer.get_buffer_position() {
                         let mut sync = clock_sync.lock();

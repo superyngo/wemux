@@ -91,8 +91,7 @@ impl ClockSync {
             let elapsed = now.duration_since(slave.last_sync);
 
             // Calculate expected position based on elapsed time
-            let elapsed_samples =
-                (elapsed.as_secs_f64() * self.sample_rate as f64) as i64;
+            let elapsed_samples = (elapsed.as_secs_f64() * self.sample_rate as f64) as i64;
 
             // Calculate actual movement
             let actual_movement = position.wrapping_sub(slave.last_position) as i64;
@@ -149,14 +148,14 @@ impl ClockSync {
 
     /// Check if a device is the master
     pub fn is_master(&self, device_id: &str) -> bool {
-        self.master_id.as_ref().map_or(false, |m| m == device_id)
+        self.master_id.as_ref().is_some_and(|m| m == device_id)
     }
 
     /// Get current drift for a slave (for monitoring)
     pub fn get_drift_ms(&self, device_id: &str) -> Option<f64> {
-        self.slaves.get(device_id).map(|slave| {
-            slave.drift_samples as f64 * 1000.0 / self.sample_rate as f64
-        })
+        self.slaves
+            .get(device_id)
+            .map(|slave| slave.drift_samples as f64 * 1000.0 / self.sample_rate as f64)
     }
 
     /// Get all slave drift values for monitoring
