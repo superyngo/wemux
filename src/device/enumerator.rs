@@ -158,6 +158,13 @@ impl DeviceEnumerator {
         Ok(hdmi_devices)
     }
 
+    /// Get the name of the default render device
+    pub fn get_default_device_name(&self) -> Result<String> {
+        let device = self.get_default_render_device()?;
+        let info = self.get_device_info(&device)?;
+        Ok(info.name)
+    }
+
     /// Get device information from an IMMDevice
     fn get_device_info(&self, device: &IMMDevice) -> Result<DeviceInfo> {
         unsafe {

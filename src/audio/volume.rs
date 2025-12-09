@@ -4,8 +4,8 @@ use crate::error::Result;
 use std::sync::atomic::{AtomicU32, Ordering};
 use tracing::{debug, warn};
 use windows::Win32::{
-    Media::Audio::{eConsole, eRender, IMMDeviceEnumerator, MMDeviceEnumerator},
     Media::Audio::Endpoints::IAudioEndpointVolume,
+    Media::Audio::{eConsole, eRender, IMMDeviceEnumerator, MMDeviceEnumerator},
     System::Com::{CoCreateInstance, CoInitializeEx, CLSCTX_ALL, COINIT_MULTITHREADED},
 };
 
@@ -114,9 +114,8 @@ pub fn apply_volume_f32(data: &mut [u8], volume: f32) {
 
     // Process as f32 samples
     // SAFETY: Audio data is always 4-byte aligned (32-bit float format)
-    let samples = unsafe {
-        std::slice::from_raw_parts_mut(data.as_mut_ptr() as *mut f32, data.len() / 4)
-    };
+    let samples =
+        unsafe { std::slice::from_raw_parts_mut(data.as_mut_ptr() as *mut f32, data.len() / 4) };
 
     // Apply volume with SIMD-friendly loop
     for sample in samples.iter_mut() {

@@ -15,6 +15,19 @@ use std::thread::{self, JoinHandle};
 use std::time::Duration;
 use tracing::{debug, error, info, warn};
 
+/// Device status for external control
+#[derive(Debug, Clone)]
+pub struct DeviceStatus {
+    /// Device ID
+    pub id: String,
+    /// Device name
+    pub name: String,
+    /// Whether the device is enabled for rendering
+    pub is_enabled: bool,
+    /// Whether the device is paused (e.g., when it's the system default output)
+    pub is_paused: bool,
+}
+
 /// Engine configuration
 #[derive(Debug, Clone)]
 pub struct EngineConfig {
@@ -87,6 +100,9 @@ pub struct AudioEngine {
     monitor_handle: Option<JoinHandle<()>>,
     renderer_controls: Arc<Mutex<HashMap<String, RendererControl>>>,
     capture_cmd_tx: Option<Sender<CaptureCommand>>,
+    // Track current default device and device names for external control
+    current_default_id: Arc<Mutex<Option<String>>>,
+    device_names: Arc<Mutex<HashMap<String, String>>>,
 }
 
 impl AudioEngine {
@@ -107,6 +123,8 @@ impl AudioEngine {
             monitor_handle: None,
             renderer_controls: Arc::new(Mutex::new(HashMap::new())),
             capture_cmd_tx: None,
+            current_default_id: Arc::new(Mutex::new(None)),
+            device_names: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
@@ -195,8 +213,9 @@ impl AudioEngine {
             volume_tracking_thread(volume_level, volume_stop, volume_event_rx);
         }));
 
-        // Clear renderer controls
+        // Clear renderer controls and device names
         self.renderer_controls.lock().clear();
+        self.device_names.lock().clear();
 
         // Start renderer threads
         let mut first_device = true;
@@ -220,6 +239,11 @@ impl AudioEngine {
             self.renderer_controls
                 .lock()
                 .insert(device_info.id.clone(), renderer_control);
+
+            // Store device name for external control
+            self.device_names
+                .lock()
+                .insert(device_info.id.clone(), device_info.name.clone());
 
             let render_buffer = buffer.clone();
             let render_stop = self.stop_flag.clone();
@@ -245,6 +269,7 @@ impl AudioEngine {
         // Start device monitor thread
         let monitor_controls = self.renderer_controls.clone();
         let monitor_stop = self.stop_flag.clone();
+        let monitor_default_id = self.current_default_id.clone();
 
         self.monitor_handle = Some(thread::spawn(move || {
             device_monitor_thread(
@@ -253,6 +278,7 @@ impl AudioEngine {
                 capture_cmd_tx,
                 volume_event_tx,
                 monitor_stop,
+                monitor_default_id,
             );
         }));
 
@@ -346,6 +372,55 @@ impl AudioEngine {
     /// Check if engine is running
     pub fn is_running(&self) -> bool {
         *self.state.lock() == EngineState::Running
+    }
+
+    /// Get status of all active renderers
+    pub fn get_device_statuses(&self) -> Vec<DeviceStatus> {
+        let controls = self.renderer_controls.lock();
+        let names = self.device_names.lock();
+
+        controls
+            .iter()
+            .map(|(id, control)| DeviceStatus {
+                id: id.clone(),
+                name: names.get(id).cloned().unwrap_or_else(|| id.clone()),
+                is_enabled: true, // In active renderers = enabled
+                is_paused: control.paused.load(Ordering::Relaxed),
+            })
+            .collect()
+    }
+
+    /// Pause a specific renderer
+    pub fn pause_renderer(&self, device_id: &str) -> Result<()> {
+        let controls = self.renderer_controls.lock();
+        if let Some(control) = controls.get(device_id) {
+            control.paused.store(true, Ordering::SeqCst);
+            debug!("Paused renderer: {}", device_id);
+            Ok(())
+        } else {
+            Err(WemuxError::DeviceNotFound(device_id.to_string()))
+        }
+    }
+
+    /// Resume a specific renderer
+    pub fn resume_renderer(&self, device_id: &str) -> Result<()> {
+        let controls = self.renderer_controls.lock();
+        if let Some(control) = controls.get(device_id) {
+            control.paused.store(false, Ordering::SeqCst);
+            debug!("Resumed renderer: {}", device_id);
+            Ok(())
+        } else {
+            Err(WemuxError::DeviceNotFound(device_id.to_string()))
+        }
+    }
+
+    /// Check if a device is the current default output
+    pub fn is_device_default(&self, device_id: &str) -> bool {
+        self.current_default_id
+            .lock()
+            .as_ref()
+            .map(|id| id == device_id)
+            .unwrap_or(false)
     }
 }
 
@@ -481,6 +556,7 @@ fn device_monitor_thread(
     capture_cmd_tx: Sender<CaptureCommand>,
     volume_event_tx: Sender<DeviceEvent>,
     stop_flag: Arc<AtomicBool>,
+    current_default_id: Arc<Mutex<Option<String>>>,
 ) {
     info!("Device monitor thread started");
 
@@ -496,6 +572,9 @@ fn device_monitor_thread(
                     // Only care about render devices (data_flow = 0 = eRender)
                     if *data_flow == 0 {
                         info!("Default render device changed to: {}", device_id);
+
+                        // Update current default device ID
+                        *current_default_id.lock() = Some(device_id.clone());
 
                         // 1. Notify capture to reinitialize
                         if let Err(e) = capture_cmd_tx.send(CaptureCommand::Reinitialize) {

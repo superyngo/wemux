@@ -8,7 +8,7 @@ mod volume;
 
 pub use buffer::RingBuffer;
 pub use capture::LoopbackCapture;
-pub use engine::{AudioEngine, EngineConfig, EngineState};
+pub use engine::{AudioEngine, DeviceStatus, EngineConfig, EngineState};
 pub use renderer::{HdmiRenderer, RendererState};
 pub use volume::{apply_volume_f32, VolumeLevel, VolumeTracker};
 

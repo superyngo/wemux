@@ -158,8 +158,8 @@ fn run_service_main(_arguments: Vec<OsString>) -> Result<(), Box<dyn std::error:
 fn init_logging(config: &ServiceConfig) {
     use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
-    let filter = EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| EnvFilter::new(&config.log_level));
+    let filter =
+        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(&config.log_level));
 
     if !config.log_file.is_empty() {
         // Log to file
