@@ -7,11 +7,14 @@ use crate::tray::menu::{MenuAction, MenuManager};
 use anyhow::Result;
 use crossbeam_channel::{bounded, Receiver, Sender};
 use muda::MenuEvent;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+use std::thread::JoinHandle;
 use std::time::Duration;
 use tracing::{error, info};
 use tray_icon::{MouseButton, TrayIcon, TrayIconBuilder, TrayIconEvent};
 use windows::Win32::UI::WindowsAndMessaging::{
-    DispatchMessageW, PeekMessageW, TranslateMessage, MSG, PM_REMOVE,
+    DispatchMessageW, PeekMessageW, PostQuitMessage, TranslateMessage, MSG, PM_REMOVE, WM_QUIT,
 };
 
 /// Configuration for tray application
@@ -40,6 +43,8 @@ pub struct TrayApp {
     icon_manager: IconManager,
     command_tx: Sender<TrayCommand>,
     status_rx: Receiver<EngineStatus>,
+    controller_handle: Option<JoinHandle<()>>,
+    exit_flag: Arc<AtomicBool>,
 }
 
 impl TrayApp {
@@ -48,11 +53,12 @@ impl TrayApp {
         let (command_tx, command_rx) = bounded(64);
         let (status_tx, status_rx) = bounded(64);
 
-        // Start engine controller in background
-        EngineController::start(command_rx, status_tx);
+        // Start engine controller in background and keep handle
+        let controller_handle = EngineController::start(command_rx, status_tx);
 
         let icon_manager = IconManager::new()?;
         let menu_manager = MenuManager::new();
+        let exit_flag = Arc::new(AtomicBool::new(false));
 
         Ok(Self {
             config,
@@ -61,6 +67,8 @@ impl TrayApp {
             icon_manager,
             command_tx,
             status_rx,
+            controller_handle: Some(controller_handle),
+            exit_flag,
         })
     }
 
@@ -97,11 +105,22 @@ impl TrayApp {
 
         // Windows message loop - required for tray icon and menu to work
         loop {
+            // Check exit flag
+            if self.exit_flag.load(Ordering::Relaxed) {
+                info!("Exit flag set, breaking event loop");
+                break;
+            }
+
             unsafe {
                 let mut msg: MSG = std::mem::zeroed();
 
                 // Process all pending Windows messages (non-blocking)
                 while PeekMessageW(&mut msg, None, 0, 0, PM_REMOVE).as_bool() {
+                    // Check for WM_QUIT message
+                    if msg.message == WM_QUIT {
+                        info!("Received WM_QUIT, exiting");
+                        return Ok(());
+                    }
                     let _ = TranslateMessage(&msg);
                     DispatchMessageW(&msg);
                 }
@@ -131,6 +150,30 @@ impl TrayApp {
             // Small sleep to avoid busy-waiting
             std::thread::sleep(Duration::from_millis(10));
         }
+
+        // Clean shutdown
+        self.shutdown();
+        Ok(())
+    }
+
+    /// Perform clean shutdown
+    fn shutdown(&mut self) {
+        info!("Performing clean shutdown...");
+
+        // Send shutdown command to controller
+        let _ = self.command_tx.send(TrayCommand::Shutdown);
+
+        // Wait for controller thread to finish
+        if let Some(handle) = self.controller_handle.take() {
+            info!("Waiting for controller thread to finish...");
+            let _ = handle.join();
+            info!("Controller thread finished");
+        }
+
+        // Drop tray icon to remove from system tray
+        self.tray_icon = None;
+
+        info!("Shutdown complete");
     }
 
     fn handle_tray_event(&mut self, event: TrayIconEvent) -> Result<()> {
@@ -174,11 +217,13 @@ impl TrayApp {
                     self.command_tx.send(TrayCommand::Stop)?;
                 }
                 MenuAction::Exit => {
-                    info!("Exit application");
-                    self.command_tx.send(TrayCommand::Shutdown)?;
-                    // Give controller time to shutdown
-                    std::thread::sleep(Duration::from_millis(100));
-                    std::process::exit(0);
+                    info!("Exit application requested");
+                    // Set exit flag to break event loop
+                    self.exit_flag.store(true, Ordering::SeqCst);
+                    // Post WM_QUIT to ensure Windows message loop exits
+                    unsafe {
+                        PostQuitMessage(0);
+                    }
                 }
             }
         }
@@ -235,5 +280,15 @@ impl TrayApp {
         }
 
         Ok(())
+    }
+}
+
+impl Drop for TrayApp {
+    fn drop(&mut self) {
+        // Ensure clean shutdown when TrayApp is dropped
+        if !self.exit_flag.load(Ordering::Relaxed) {
+            self.exit_flag.store(true, Ordering::SeqCst);
+            self.shutdown();
+        }
     }
 }

@@ -24,8 +24,10 @@ pub struct DeviceStatus {
     pub name: String,
     /// Whether the device is enabled for rendering
     pub is_enabled: bool,
-    /// Whether the device is paused (e.g., when it's the system default output)
+    /// Whether the device is paused by user
     pub is_paused: bool,
+    /// Whether this device is the current system default output (auto-paused, cannot be controlled)
+    pub is_system_default: bool,
 }
 
 /// Engine configuration
@@ -33,12 +35,16 @@ pub struct DeviceStatus {
 pub struct EngineConfig {
     /// Buffer size in milliseconds
     pub buffer_ms: u32,
-    /// Specific device IDs to use (None = auto-detect all HDMI)
+    /// Specific device IDs to use (None = auto-detect all output devices)
     pub device_ids: Option<Vec<String>>,
-    /// Device IDs to exclude
+    /// Device IDs to exclude (system default will be auto-excluded)
     pub exclude_ids: Option<Vec<String>>,
     /// Source device ID for loopback (None = system default)
     pub source_device_id: Option<String>,
+    /// Device IDs that should start paused (disabled in settings)
+    pub paused_device_ids: Option<Vec<String>>,
+    /// Use all output devices instead of HDMI only
+    pub use_all_devices: bool,
 }
 
 impl Default for EngineConfig {
@@ -48,6 +54,8 @@ impl Default for EngineConfig {
             device_ids: None,
             exclude_ids: None,
             source_device_id: None,
+            paused_device_ids: None,
+            use_all_devices: false,
         }
     }
 }
@@ -83,6 +91,13 @@ struct RendererControl {
     paused: Arc<AtomicBool>,
 }
 
+/// Events from the engine that external controllers might care about
+#[derive(Debug, Clone)]
+pub enum EngineEvent {
+    /// Default audio device changed - UI should refresh
+    DefaultDeviceChanged,
+}
+
 /// Audio engine coordinating capture and multiple renderers
 pub struct AudioEngine {
     config: EngineConfig,
@@ -103,6 +118,8 @@ pub struct AudioEngine {
     // Track current default device and device names for external control
     current_default_id: Arc<Mutex<Option<String>>>,
     device_names: Arc<Mutex<HashMap<String, String>>>,
+    // Event notification channel for external listeners
+    event_tx: Option<Sender<EngineEvent>>,
 }
 
 impl AudioEngine {
@@ -125,7 +142,14 @@ impl AudioEngine {
             capture_cmd_tx: None,
             current_default_id: Arc::new(Mutex::new(None)),
             device_names: Arc::new(Mutex::new(HashMap::new())),
+            event_tx: None,
         }
+    }
+
+    /// Set an event notification channel
+    /// Events will be sent when things like default device changes occur
+    pub fn set_event_channel(&mut self, tx: Sender<EngineEvent>) {
+        self.event_tx = Some(tx);
     }
 
     /// Get current engine state
@@ -167,14 +191,19 @@ impl AudioEngine {
 
         // Enumerate and create renderers
         let enumerator = DeviceEnumerator::new()?;
-        let hdmi_devices = self.get_target_devices(&enumerator)?;
+        let target_devices = self.get_target_devices(&enumerator)?;
 
-        if hdmi_devices.is_empty() {
+        if target_devices.is_empty() {
             return Err(WemuxError::NoHdmiDevices);
         }
 
-        info!("Found {} HDMI devices:", hdmi_devices.len());
-        for device in &hdmi_devices {
+        let device_type = if self.config.use_all_devices {
+            "output"
+        } else {
+            "HDMI"
+        };
+        info!("Found {} {} devices:", target_devices.len(), device_type);
+        for device in &target_devices {
             info!("  - {}", device.name);
         }
 
@@ -217,9 +246,24 @@ impl AudioEngine {
         self.renderer_controls.lock().clear();
         self.device_names.lock().clear();
 
+        // Get current default device ID for checking during renderer setup
+        let default_device_id = enumerator
+            .get_default_render_device()
+            .ok()
+            .and_then(|d| unsafe {
+                d.GetId().ok().and_then(|id_ptr| {
+                    let id = windows::core::PCWSTR(id_ptr.0).to_string().ok();
+                    windows::Win32::System::Com::CoTaskMemFree(Some(id_ptr.0 as *const _));
+                    id
+                })
+            });
+
+        // Store current default device ID
+        *self.current_default_id.lock() = default_device_id.clone();
+
         // Start renderer threads
         let mut first_device = true;
-        for device_info in hdmi_devices {
+        for device_info in target_devices {
             let device = enumerator.get_device_by_id(&device_info.id)?;
             let renderer = HdmiRenderer::new(&device)?;
 
@@ -231,8 +275,30 @@ impl AudioEngine {
                 clock_sync.lock().register_slave(&device_info.id);
             }
 
-            // Create renderer control
-            let paused_flag = Arc::new(AtomicBool::new(false));
+            // Create renderer control - start paused if:
+            // 1. This device is the default output (to prevent feedback)
+            // 2. This device is in the paused_device_ids list (from settings)
+            let is_default = default_device_id
+                .as_ref()
+                .map(|id| id == &device_info.id)
+                .unwrap_or(false);
+
+            let should_pause_from_config = self.should_device_start_paused(&device_info.id);
+            let should_start_paused = is_default || should_pause_from_config;
+
+            if is_default {
+                info!(
+                    "Device {} is the default output, starting paused",
+                    device_info.name
+                );
+            } else if should_pause_from_config {
+                info!(
+                    "Device {} is disabled in settings, starting paused",
+                    device_info.name
+                );
+            }
+
+            let paused_flag = Arc::new(AtomicBool::new(should_start_paused));
             let renderer_control = RendererControl {
                 paused: paused_flag.clone(),
             };
@@ -270,6 +336,7 @@ impl AudioEngine {
         let monitor_controls = self.renderer_controls.clone();
         let monitor_stop = self.stop_flag.clone();
         let monitor_default_id = self.current_default_id.clone();
+        let monitor_event_tx = self.event_tx.clone();
 
         self.monitor_handle = Some(thread::spawn(move || {
             device_monitor_thread(
@@ -279,6 +346,7 @@ impl AudioEngine {
                 volume_event_tx,
                 monitor_stop,
                 monitor_default_id,
+                monitor_event_tx,
             );
         }));
 
@@ -308,6 +376,10 @@ impl AudioEngine {
             let _ = tx.send(EngineCommand::Stop);
         }
 
+        // Drop device monitor first (unregisters COM callback)
+        // This must happen before waiting for monitor thread
+        self.device_monitor = None;
+
         // Wait for capture thread
         if let Some(handle) = self.capture_handle.take() {
             let _ = handle.join();
@@ -323,16 +395,25 @@ impl AudioEngine {
             let _ = handle.join();
         }
 
-        // Drop device monitor (unregisters COM callback)
-        self.device_monitor = None;
-
         // Wait for render threads
         for handle in self.render_handles.drain(..) {
             let _ = handle.join();
         }
 
-        // Clear renderer controls
+        // Clear renderer controls and device names
         self.renderer_controls.lock().clear();
+        self.device_names.lock().clear();
+
+        // Clear channels
+        self.command_tx = None;
+        self.capture_cmd_tx = None;
+
+        // Clear buffer and format
+        self.buffer = None;
+        self.format = None;
+
+        // Clear current default device
+        *self.current_default_id.lock() = None;
 
         *self.state.lock() = EngineState::Stopped;
         info!("Audio engine stopped");
@@ -340,7 +421,7 @@ impl AudioEngine {
         Ok(())
     }
 
-    /// Get target HDMI devices based on configuration
+    /// Get target devices based on configuration
     fn get_target_devices(&self, enumerator: &DeviceEnumerator) -> Result<Vec<DeviceInfo>> {
         let mut devices = if let Some(ids) = &self.config.device_ids {
             // Use specified devices
@@ -352,8 +433,11 @@ impl AudioEngine {
                         .any(|id| d.id.contains(id) || d.name.contains(id))
                 })
                 .collect()
+        } else if self.config.use_all_devices {
+            // Use all output devices
+            enumerator.enumerate_all_devices()?
         } else {
-            // Auto-detect HDMI devices
+            // Auto-detect HDMI devices only (legacy behavior)
             enumerator.enumerate_hdmi_devices().unwrap_or_default()
         };
 
@@ -369,6 +453,15 @@ impl AudioEngine {
         Ok(devices)
     }
 
+    /// Check if a device should start paused based on config
+    fn should_device_start_paused(&self, device_id: &str) -> bool {
+        if let Some(paused_ids) = &self.config.paused_device_ids {
+            paused_ids.iter().any(|id| id == device_id)
+        } else {
+            false
+        }
+    }
+
     /// Check if engine is running
     pub fn is_running(&self) -> bool {
         *self.state.lock() == EngineState::Running
@@ -378,14 +471,19 @@ impl AudioEngine {
     pub fn get_device_statuses(&self) -> Vec<DeviceStatus> {
         let controls = self.renderer_controls.lock();
         let names = self.device_names.lock();
+        let current_default = self.current_default_id.lock();
 
         controls
             .iter()
-            .map(|(id, control)| DeviceStatus {
-                id: id.clone(),
-                name: names.get(id).cloned().unwrap_or_else(|| id.clone()),
-                is_enabled: true, // In active renderers = enabled
-                is_paused: control.paused.load(Ordering::Relaxed),
+            .map(|(id, control)| {
+                let is_system_default = current_default.as_ref().map(|d| d == id).unwrap_or(false);
+                DeviceStatus {
+                    id: id.clone(),
+                    name: names.get(id).cloned().unwrap_or_else(|| id.clone()),
+                    is_enabled: true, // In active renderers = enabled
+                    is_paused: control.paused.load(Ordering::Relaxed),
+                    is_system_default,
+                }
             })
             .collect()
     }
@@ -557,6 +655,7 @@ fn device_monitor_thread(
     volume_event_tx: Sender<DeviceEvent>,
     stop_flag: Arc<AtomicBool>,
     current_default_id: Arc<Mutex<Option<String>>>,
+    engine_event_tx: Option<Sender<EngineEvent>>,
 ) {
     info!("Device monitor thread started");
 
@@ -596,17 +695,20 @@ fn device_monitor_thread(
                                 control.paused.store(true, Ordering::SeqCst);
                                 found_match = true;
                             } else {
-                                // Resume other renderers
-                                if control.paused.load(Ordering::Relaxed) {
-                                    info!("Resuming renderer for device: {}", id);
-                                    control.paused.store(false, Ordering::SeqCst);
-                                }
+                                // Resume other renderers that were auto-paused due to being system default
+                                // Note: We don't resume here as we want user-paused devices to stay paused
+                                // The paused flag is only auto-set when device becomes default
                             }
                         }
 
                         if !found_match {
                             // Default changed to non-HDMI device, resume all renderers
                             debug!("Default device is not an HDMI renderer, all renderers active");
+                        }
+
+                        // 4. Notify external listeners (UI) to refresh
+                        if let Some(ref tx) = engine_event_tx {
+                            let _ = tx.send(EngineEvent::DefaultDeviceChanged);
                         }
                     }
                 }

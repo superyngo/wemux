@@ -37,8 +37,8 @@ pub enum DeviceEvent {
 
 /// Device monitor for hot-plug detection
 pub struct DeviceMonitor {
-    _enumerator: IMMDeviceEnumerator,
-    _callback: IMMNotificationClient,
+    enumerator: IMMDeviceEnumerator,
+    callback: IMMNotificationClient,
 }
 
 impl DeviceMonitor {
@@ -62,9 +62,22 @@ impl DeviceMonitor {
             info!("Device monitor started");
 
             Ok(Self {
-                _enumerator: enumerator,
-                _callback: callback,
+                enumerator,
+                callback,
             })
+        }
+    }
+}
+
+impl Drop for DeviceMonitor {
+    fn drop(&mut self) {
+        unsafe {
+            // Unregister the callback to prevent it from firing after we're dropped
+            if let Err(e) = self.enumerator.UnregisterEndpointNotificationCallback(&self.callback) {
+                warn!("Failed to unregister device notification callback: {:?}", e);
+            } else {
+                info!("Device monitor callback unregistered");
+            }
         }
     }
 }

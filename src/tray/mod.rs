@@ -11,8 +11,12 @@ mod controller;
 mod icon;
 #[cfg(feature = "tray")]
 mod menu;
+#[cfg(feature = "tray")]
+mod settings;
 
 #[cfg(feature = "tray")]
 pub use app::{TrayApp, TrayConfig};
 #[cfg(feature = "tray")]
 pub use controller::{EngineController, EngineStatus, TrayCommand};
+#[cfg(feature = "tray")]
+pub use settings::TraySettings;

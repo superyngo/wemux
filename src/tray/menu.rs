@@ -27,13 +27,14 @@ pub struct MenuManager {
     // Cached state for menu rebuilds
     cached_default_output: String,
     cached_devices: Vec<DeviceStatus>,
+    cached_engine_running: bool,
 }
 
 impl MenuManager {
     /// Create a new menu manager
     pub fn new() -> Self {
         let menu = Menu::new();
-        let device_submenu = Submenu::new("HDMI Devices", true);
+        let device_submenu = Submenu::new("Output Devices", true);
 
         // Create placeholder items
         let default_output_item = MenuItem::new("System Output: Unknown", false, None);
@@ -52,6 +53,7 @@ impl MenuManager {
             stop_item,
             cached_default_output: "Unknown".to_string(),
             cached_devices: Vec::new(),
+            cached_engine_running: false,
         }
     }
 
@@ -70,16 +72,19 @@ impl MenuManager {
 
         menu.append(&PredefinedMenuItem::separator())?;
 
-        // HDMI Devices submenu - use cached devices
-        self.device_submenu = Submenu::new("HDMI Devices", true);
+        // Output Devices submenu - use cached devices
+        self.device_submenu = Submenu::new("Output Devices", true);
         if self.cached_devices.is_empty() {
             let no_devices = MenuItem::new("Not found", false, None);
             self.device_submenu.append(&no_devices)?;
         } else {
             for device in &self.cached_devices {
                 let label = self.format_device_label(device);
-                let enabled = !device.is_paused;
-                let item = CheckMenuItem::new(&label, enabled, !device.is_paused, None);
+                // System default devices are greyed out (disabled) and cannot be toggled
+                // Other devices can be toggled between Active and Disabled
+                let can_toggle = !device.is_system_default;
+                let is_active = !device.is_paused && !device.is_system_default;
+                let item = CheckMenuItem::new(&label, can_toggle, is_active, None);
                 let item_id = item.id().clone();
                 self.device_items.insert(item_id.clone(), device.id.clone());
                 self.actions
@@ -91,13 +96,13 @@ impl MenuManager {
 
         menu.append(&PredefinedMenuItem::separator())?;
 
-        // Control items
-        self.start_item = MenuItem::new("Start", true, None);
+        // Control items - use cached engine state
+        self.start_item = MenuItem::new("Start", !self.cached_engine_running, None);
         let start_id = self.start_item.id().clone();
         self.actions.insert(start_id, MenuAction::StartEngine);
         menu.append(&self.start_item)?;
 
-        self.stop_item = MenuItem::new("Stop", false, None);
+        self.stop_item = MenuItem::new("Stop", self.cached_engine_running, None);
         let stop_id = self.stop_item.id().clone();
         self.actions.insert(stop_id, MenuAction::StopEngine);
         menu.append(&self.stop_item)?;
@@ -133,9 +138,14 @@ impl MenuManager {
     fn format_device_label(&self, device: &DeviceStatus) -> String {
         let mut label = device.name.clone();
 
-        if device.is_paused {
-            label.push_str(" (System Default - Disabled)");
+        if device.is_system_default {
+            // System default device - auto-paused to prevent feedback
+            label.push_str(" (System Default)");
+        } else if device.is_paused {
+            // User manually disabled this device
+            label.push_str(" [Disabled]");
         } else if device.is_enabled {
+            // Active and outputting audio
             label.push_str(" [Active]");
         }
 
@@ -144,6 +154,9 @@ impl MenuManager {
 
     /// Update engine state in status item
     pub fn update_engine_state(&mut self, running: bool) -> Result<(), muda::Error> {
+        // Cache engine state for menu rebuilds
+        self.cached_engine_running = running;
+
         let text = if running {
             "wemux: Running"
         } else {
