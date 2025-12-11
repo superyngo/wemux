@@ -45,15 +45,33 @@ impl RingBuffer {
     /// Returns the number of bytes written.
     /// This always succeeds - old data will be overwritten if buffer is full.
     pub fn write(&self, data: &[u8]) -> usize {
-        let write_pos = self.write_pos.load(Ordering::Relaxed);
+        if data.is_empty() {
+            return 0;
+        }
 
-        for (i, &byte) in data.iter().enumerate() {
-            let pos = (write_pos + i) & self.mask;
-            // SAFETY: We're the only writer and pos is always valid
-            unsafe {
-                let ptr = self.buffer.as_ptr() as *mut u8;
-                std::ptr::write_volatile(ptr.add(pos), byte);
+        let write_pos = self.write_pos.load(Ordering::Relaxed);
+        let start_pos = write_pos & self.mask;
+
+        // Calculate contiguous space before wrap-around
+        let first_chunk_len = (self.capacity - start_pos).min(data.len());
+
+        unsafe {
+            let ptr = self.buffer.as_ptr() as *mut u8;
+
+            if first_chunk_len == data.len() {
+                // Single contiguous copy - no wrap-around
+                std::ptr::copy_nonoverlapping(data.as_ptr(), ptr.add(start_pos), data.len());
+            } else {
+                // Two copies needed - wrap around ring buffer
+                // Copy first chunk to end of buffer
+                std::ptr::copy_nonoverlapping(data.as_ptr(), ptr.add(start_pos), first_chunk_len);
+                // Copy remaining data to start of buffer
+                let remaining_len = data.len() - first_chunk_len;
+                std::ptr::copy_nonoverlapping(data.as_ptr().add(first_chunk_len), ptr, remaining_len);
             }
+
+            // Memory fence to ensure all writes are visible before updating write position
+            std::sync::atomic::fence(Ordering::Release);
         }
 
         // Update write position
@@ -68,20 +86,40 @@ impl RingBuffer {
     /// Returns the number of bytes read and updates the read position.
     /// The reader is responsible for tracking their own read position.
     pub fn read(&self, buf: &mut [u8], read_pos: &mut usize) -> usize {
+        if buf.is_empty() {
+            return 0;
+        }
+
         let write_pos = self.write_pos.load(Ordering::Acquire);
         let available = write_pos.wrapping_sub(*read_pos);
 
         // Don't read more than available or more than buffer size
         let to_read = buf.len().min(available).min(self.capacity);
 
-        #[allow(clippy::needless_range_loop)]
-        for i in 0..to_read {
-            let pos = (*read_pos + i) & self.mask;
-            // SAFETY: pos is always valid due to mask
-            unsafe {
-                let ptr = self.buffer.as_ptr();
-                buf[i] = std::ptr::read_volatile(ptr.add(pos));
+        if to_read == 0 {
+            return 0;
+        }
+
+        let start_pos = *read_pos & self.mask;
+        let first_chunk_len = (self.capacity - start_pos).min(to_read);
+
+        unsafe {
+            let ptr = self.buffer.as_ptr();
+
+            if first_chunk_len == to_read {
+                // Single contiguous copy - no wrap-around
+                std::ptr::copy_nonoverlapping(ptr.add(start_pos), buf.as_mut_ptr(), to_read);
+            } else {
+                // Two copies needed - wrap around ring buffer
+                // Copy first chunk from end of buffer
+                std::ptr::copy_nonoverlapping(ptr.add(start_pos), buf.as_mut_ptr(), first_chunk_len);
+                // Copy remaining data from start of buffer
+                let remaining_len = to_read - first_chunk_len;
+                std::ptr::copy_nonoverlapping(ptr, buf.as_mut_ptr().add(first_chunk_len), remaining_len);
             }
+
+            // Memory fence to ensure all reads complete before updating read position
+            std::sync::atomic::fence(Ordering::Acquire);
         }
 
         *read_pos = read_pos.wrapping_add(to_read);

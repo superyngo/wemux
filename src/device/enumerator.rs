@@ -18,6 +18,9 @@ use windows::{
     },
 };
 
+/// PROPVARIANT type for wide string pointers
+const VT_LPWSTR: u16 = 31;
+
 /// Information about an audio device
 #[derive(Clone)]
 pub struct DeviceInfo {
@@ -158,6 +161,13 @@ impl DeviceEnumerator {
         Ok(hdmi_devices)
     }
 
+    /// Get the name of the default render device
+    pub fn get_default_device_name(&self) -> Result<String> {
+        let device = self.get_default_render_device()?;
+        let info = self.get_device_info(&device)?;
+        Ok(info.name)
+    }
+
     /// Get device information from an IMMDevice
     fn get_device_info(&self, device: &IMMDevice) -> Result<DeviceInfo> {
         unsafe {
@@ -212,8 +222,8 @@ fn prop_variant_to_string(prop: &PROPVARIANT) -> Option<String> {
         }
 
         let raw = &*(prop as *const PROPVARIANT as *const PropVariantRaw);
-        // Check if it's a string type (VT_LPWSTR = 31)
-        if raw.vt == 31 && !raw.data.is_null() {
+        // Check if it's a string type
+        if raw.vt == VT_LPWSTR && !raw.data.is_null() {
             return PCWSTR(raw.data).to_string().ok();
         }
         None

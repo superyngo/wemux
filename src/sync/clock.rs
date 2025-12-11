@@ -5,7 +5,7 @@ use std::time::Instant;
 use tracing::{debug, trace};
 
 /// Threshold in samples before applying drift correction
-const DRIFT_THRESHOLD_SAMPLES: i64 = 480; // ~10ms at 48kHz
+const DRIFT_THRESHOLD_SAMPLES: i64 = 240; // ~5ms at 48kHz (tighter sync)
 
 /// Maximum correction per update (to avoid audible glitches)
 const MAX_CORRECTION_SAMPLES: i64 = 48; // ~1ms at 48kHz
@@ -129,9 +129,33 @@ impl ClockSync {
         }
     }
 
-    /// Get the pending correction for a slave
+    /// Get the pending correction for a slave (read-only, does not modify state)
     ///
     /// Returns number of samples to skip (positive) or duplicate (negative)
+    /// This is the non-mutating version for use in hot paths.
+    pub fn get_correction_readonly(&self, device_id: &str) -> i64 {
+        self.slaves
+            .get(device_id)
+            .map(|slave| slave.pending_correction)
+            .unwrap_or(0)
+    }
+
+    /// Apply correction and reset pending state
+    ///
+    /// Should be called after get_correction_readonly() to mark correction as applied.
+    pub fn apply_correction(&mut self, device_id: &str) {
+        if let Some(slave) = self.slaves.get_mut(device_id) {
+            if slave.pending_correction != 0 {
+                slave.drift_samples -= slave.pending_correction;
+                slave.pending_correction = 0;
+            }
+        }
+    }
+
+    /// Get the pending correction for a slave (legacy, mutating version)
+    ///
+    /// Returns number of samples to skip (positive) or duplicate (negative)
+    /// Prefer using get_correction_readonly() + apply_correction() for better performance.
     pub fn get_correction(&mut self, device_id: &str) -> i64 {
         if let Some(slave) = self.slaves.get_mut(device_id) {
             let correction = slave.pending_correction;

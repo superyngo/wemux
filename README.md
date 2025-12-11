@@ -18,6 +18,8 @@ wemux captures audio from the Windows system default output device using WASAPI 
 - **Auto-Detection**: Automatically finds all HDMI audio devices
 - **Hot-Plug Support**: Handles device connection/disconnection gracefully
 - **Low Latency**: Configurable buffer size for latency tuning
+- **System Tray**: Easy control via system tray application with device toggles
+- **Windows Service**: Run as a background service (optional)
 
 ## Requirements
 
@@ -156,11 +158,12 @@ OPTIONS:
 
 ## Future Plans
 
-- [ ] Windows Service mode
-- [ ] System tray application
+- [x] Windows Service mode (v0.1.0+)
+- [x] System tray application (v0.2.0+)
 - [ ] Configuration file support
 - [ ] Per-device volume control
 - [ ] Format conversion between devices
+- [ ] Auto-update mechanism
 
 ## License
 

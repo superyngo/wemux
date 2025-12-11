@@ -10,7 +10,9 @@ use tracing_subscriber::EnvFilter;
 use wemux::audio::{AudioEngine, EngineConfig};
 use wemux::config::{Args, Command, ServiceAction};
 use wemux::device::DeviceEnumerator;
-use wemux::service::{config::ServiceConfig, SERVICE_DESCRIPTION, SERVICE_DISPLAY_NAME, SERVICE_NAME};
+use wemux::service::{
+    config::ServiceConfig, SERVICE_DESCRIPTION, SERVICE_DISPLAY_NAME, SERVICE_NAME,
+};
 
 fn main() -> Result<()> {
     let args = Args::parse();
@@ -107,6 +109,8 @@ fn cmd_start(
         device_ids: devices,
         exclude_ids: exclude,
         source_device_id: source,
+        paused_device_ids: None,
+        use_all_devices: false, // CLI uses HDMI devices only
     };
 
     let mut engine = AudioEngine::new(config);
@@ -263,9 +267,8 @@ fn cmd_service(action: ServiceAction) -> Result<()> {
                 // Parse and display status
                 for line in stdout.lines() {
                     let line = line.trim();
-                    if line.starts_with("STATE") {
-                        println!("  {}", line);
-                    } else if line.starts_with("SERVICE_NAME")
+                    if line.starts_with("STATE")
+                        || line.starts_with("SERVICE_NAME")
                         || line.starts_with("TYPE")
                         || line.starts_with("PID")
                     {

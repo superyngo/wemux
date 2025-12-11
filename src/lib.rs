@@ -26,6 +26,9 @@ pub mod error;
 pub mod service;
 pub mod sync;
 
+#[cfg(feature = "tray")]
+pub mod tray;
+
 pub use error::{Result, WemuxError};
 
 /// Library version
