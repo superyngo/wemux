@@ -18,6 +18,9 @@ use windows::{
     },
 };
 
+/// PROPVARIANT type for wide string pointers
+const VT_LPWSTR: u16 = 31;
+
 /// Information about an audio device
 #[derive(Clone)]
 pub struct DeviceInfo {
@@ -219,8 +222,8 @@ fn prop_variant_to_string(prop: &PROPVARIANT) -> Option<String> {
         }
 
         let raw = &*(prop as *const PROPVARIANT as *const PropVariantRaw);
-        // Check if it's a string type (VT_LPWSTR = 31)
-        if raw.vt == 31 && !raw.data.is_null() {
+        // Check if it's a string type
+        if raw.vt == VT_LPWSTR && !raw.data.is_null() {
             return PCWSTR(raw.data).to_string().ok();
         }
         None

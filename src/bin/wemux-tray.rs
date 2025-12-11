@@ -28,9 +28,13 @@ fn main() -> Result<()> {
             windows::Win32::System::Console::AllocConsole()?;
 
             // Set up console control handler to handle Ctrl+C and console close events
-            use windows::Win32::System::Console::{SetConsoleCtrlHandler, CTRL_C_EVENT, CTRL_CLOSE_EVENT, CTRL_BREAK_EVENT};
+            use windows::Win32::System::Console::{
+                SetConsoleCtrlHandler, CTRL_BREAK_EVENT, CTRL_CLOSE_EVENT, CTRL_C_EVENT,
+            };
 
-            unsafe extern "system" fn console_ctrl_handler(ctrl_type: u32) -> windows::Win32::Foundation::BOOL {
+            unsafe extern "system" fn console_ctrl_handler(
+                ctrl_type: u32,
+            ) -> windows::Win32::Foundation::BOOL {
                 match ctrl_type {
                     x if x == CTRL_C_EVENT || x == CTRL_CLOSE_EVENT || x == CTRL_BREAK_EVENT => {
                         CONSOLE_EXIT_FLAG.store(true, Ordering::SeqCst);

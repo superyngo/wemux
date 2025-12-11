@@ -109,6 +109,8 @@ fn cmd_start(
         device_ids: devices,
         exclude_ids: exclude,
         source_device_id: source,
+        paused_device_ids: None,
+        use_all_devices: false, // CLI uses HDMI devices only
     };
 
     let mut engine = AudioEngine::new(config);

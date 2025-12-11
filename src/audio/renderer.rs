@@ -20,6 +20,9 @@ use windows::{
     },
 };
 
+/// PROPVARIANT type for wide string pointers
+const VT_LPWSTR: u16 = 31;
+
 /// State of an HDMI renderer
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RendererState {
@@ -87,8 +90,13 @@ impl HdmiRenderer {
             // Create event for buffer notification
             let event = CreateEventW(None, false, false, None)?;
 
-            // Initialize audio client
-            let buffer_duration = 500_000i64; // 50ms in 100-nanosecond units
+            // Auto-calculate optimal buffer duration based on hardware capabilities
+            let buffer_duration = crate::audio::HardwareCapabilities::query(&audio_client)
+                .map(|caps| caps.optimal_buffer_duration())
+                .unwrap_or_else(|e| {
+                    debug!("Failed to query hardware capabilities: {}, using default 35ms", e);
+                    350_000i64 // 35ms fallback
+                });
 
             audio_client.Initialize(
                 AUDCLNT_SHAREMODE_SHARED,
@@ -144,8 +152,7 @@ impl HdmiRenderer {
             }
 
             let raw = &*((&prop) as *const windows_core::PROPVARIANT as *const PropVariantRaw);
-            // VT_LPWSTR = 31
-            if raw.vt == 31 && !raw.data.is_null() {
+            if raw.vt == VT_LPWSTR && !raw.data.is_null() {
                 return PCWSTR(raw.data).to_string().ok();
             }
             None

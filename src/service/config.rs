@@ -62,7 +62,8 @@ impl ServiceConfig {
     ///
     /// Searches in order:
     /// 1. Same directory as executable: wemux.toml
-    /// 2. %PROGRAMDATA%\wemux\config.toml
+    /// 2. %LOCALAPPDATA%\wemux\config.toml (MSIX-compatible user data)
+    /// 3. %PROGRAMDATA%\wemux\config.toml
     pub fn load_default() -> Result<Self, ConfigError> {
         // Try executable directory first
         if let Ok(exe_path) = std::env::current_exe() {
@@ -71,6 +72,14 @@ impl ServiceConfig {
                 if config_path.exists() {
                     return Self::load(&config_path);
                 }
+            }
+        }
+
+        // Try LocalAppData (MSIX-compatible)
+        if let Some(local_data) = dirs::data_local_dir() {
+            let config_path = local_data.join("wemux").join("config.toml");
+            if config_path.exists() {
+                return Self::load(&config_path);
             }
         }
 
@@ -84,6 +93,13 @@ impl ServiceConfig {
 
         // Return default config if no file found
         Ok(Self::default())
+    }
+
+    /// Get the recommended configuration file path for user data
+    ///
+    /// Returns %LOCALAPPDATA%\wemux\config.toml (MSIX-compatible)
+    pub fn get_user_config_path() -> Option<std::path::PathBuf> {
+        dirs::data_local_dir().map(|d| d.join("wemux").join("config.toml"))
     }
 
     /// Save configuration to a TOML file
@@ -123,6 +139,8 @@ impl ServiceConfig {
             } else {
                 Some(self.source_device_id.clone())
             },
+            paused_device_ids: None, // Service doesn't support per-device pause settings
+            use_all_devices: false,  // Service uses HDMI devices only (legacy behavior)
         }
     }
 
@@ -149,7 +167,7 @@ source_device_id = ""
 log_level = "info"
 
 # Log file path (empty = no file logging)
-# Example: log_file = "C:\\ProgramData\\wemux\\wemux.log"
+# Example: log_file = "C:\\Users\\<username>\\AppData\\Local\\wemux\\wemux.log"
 log_file = ""
 "#
         .to_string()

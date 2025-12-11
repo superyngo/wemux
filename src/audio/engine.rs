@@ -2,7 +2,7 @@
 
 use crate::audio::buffer::ReaderState;
 use crate::audio::volume::{apply_volume_f32, VolumeLevel, VolumeTracker};
-use crate::audio::{AudioFormat, HdmiRenderer, LoopbackCapture, RingBuffer};
+use crate::audio::{AudioFormat, HardwareCapabilities, HdmiRenderer, LoopbackCapture, RingBuffer};
 use crate::device::{DeviceEnumerator, DeviceEvent, DeviceInfo, DeviceMonitor};
 use crate::error::{Result, WemuxError};
 use crate::sync::ClockSync;
@@ -184,11 +184,6 @@ impl AudioEngine {
 
         info!("Capture format: {}", format);
 
-        // Create ring buffer (enough for 500ms of audio)
-        let buffer_size = format.buffer_size_for_ms(500);
-        let buffer = Arc::new(RingBuffer::new(buffer_size));
-        self.buffer = Some(buffer.clone());
-
         // Enumerate and create renderers
         let enumerator = DeviceEnumerator::new()?;
         let target_devices = self.get_target_devices(&enumerator)?;
@@ -206,6 +201,15 @@ impl AudioEngine {
         for device in &target_devices {
             info!("  - {}", device.name);
         }
+
+        // Auto-calculate optimal ring buffer size based on number of renderers
+        // Use Standard latency class as default if hardware detection fails
+        let ring_buffer_ms = HardwareCapabilities::default()
+            .optimal_ring_buffer_ms(target_devices.len());
+        let buffer_size = format.buffer_size_for_ms(ring_buffer_ms);
+        let buffer = Arc::new(RingBuffer::new(buffer_size));
+        self.buffer = Some(buffer.clone());
+        info!("Ring buffer: {}ms ({} bytes)", ring_buffer_ms, buffer_size);
 
         // Create clock sync
         let clock_sync = Arc::new(Mutex::new(ClockSync::new(format.sample_rate)));
@@ -784,8 +788,13 @@ fn render_thread(
         let read = reader.read(&buffer, &mut render_buffer[..to_read]);
 
         if read > 0 {
-            // Apply clock sync correction
-            let correction = clock_sync.lock().get_correction(&device_id);
+            // Apply clock sync correction (use readonly to avoid locking)
+            let (correction, is_master) = {
+                let sync = clock_sync.lock();
+                let correction = sync.get_correction_readonly(&device_id);
+                let is_master = sync.is_master(&device_id);
+                (correction, is_master)
+            };
 
             // For now, skip samples if ahead (positive correction)
             // In a more sophisticated implementation, we'd do sample rate conversion
@@ -802,13 +811,16 @@ fn render_thread(
 
             match renderer.write_frames(&render_buffer[start..end], 50) {
                 Ok(_frames) => {
-                    // Update clock sync
+                    // Update clock sync position and apply correction
                     if let Ok(pos) = renderer.get_buffer_position() {
                         let mut sync = clock_sync.lock();
-                        if sync.is_master(&device_id) {
+                        if is_master {
                             sync.update_master(pos);
                         } else {
                             sync.update_slave(&device_id, pos);
+                            if correction != 0 {
+                                sync.apply_correction(&device_id);
+                            }
                         }
                     }
                 }

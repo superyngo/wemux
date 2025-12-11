@@ -80,8 +80,13 @@ impl LoopbackCapture {
             // Create event for buffer notification
             let event = CreateEventW(None, false, false, None)?;
 
-            // Initialize audio client in shared mode with loopback
-            let buffer_duration = 500_000i64; // 50ms in 100-nanosecond units
+            // Auto-calculate optimal buffer duration based on hardware capabilities
+            let buffer_duration = crate::audio::HardwareCapabilities::query(&audio_client)
+                .map(|caps| caps.optimal_buffer_duration())
+                .unwrap_or_else(|e| {
+                    debug!("Failed to query hardware capabilities: {}, using default 35ms", e);
+                    350_000i64 // 35ms fallback
+                });
 
             audio_client.Initialize(
                 AUDCLNT_SHAREMODE_SHARED,

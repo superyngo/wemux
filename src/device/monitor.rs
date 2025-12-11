@@ -73,7 +73,10 @@ impl Drop for DeviceMonitor {
     fn drop(&mut self) {
         unsafe {
             // Unregister the callback to prevent it from firing after we're dropped
-            if let Err(e) = self.enumerator.UnregisterEndpointNotificationCallback(&self.callback) {
+            if let Err(e) = self
+                .enumerator
+                .UnregisterEndpointNotificationCallback(&self.callback)
+            {
                 warn!("Failed to unregister device notification callback: {:?}", e);
             } else {
                 info!("Device monitor callback unregistered");

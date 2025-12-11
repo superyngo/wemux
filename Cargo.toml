@@ -23,7 +23,7 @@ required-features = ["tray"]
 [features]
 default = []
 service = ["windows-service"]
-tray = ["tray-icon", "muda"]
+tray = ["tray-icon", "muda", "image"]
 
 [dependencies]
 # Windows API bindings
@@ -47,6 +47,7 @@ windows-core = "0.58"
 # System tray (optional)
 tray-icon = { version = "0.19", optional = true }
 muda = { version = "0.15", optional = true }
+image = { version = "0.25", optional = true }
 
 # CLI
 clap = { version = "4", features = ["derive"] }
@@ -66,6 +67,7 @@ crossbeam-channel = "0.5"
 # Configuration
 serde = { version = "1", features = ["derive"] }
 toml = "0.8"
+dirs = "5"
 
 # Signal handling
 [target.'cfg(windows)'.dependencies]

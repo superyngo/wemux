@@ -3,12 +3,14 @@
 mod buffer;
 mod capture;
 mod engine;
+mod hardware;
 mod renderer;
 mod volume;
 
 pub use buffer::RingBuffer;
 pub use capture::LoopbackCapture;
 pub use engine::{AudioEngine, DeviceStatus, EngineConfig, EngineEvent, EngineState};
+pub use hardware::{HardwareCapabilities, LatencyClass};
 pub use renderer::{HdmiRenderer, RendererState};
 pub use volume::{apply_volume_f32, VolumeLevel, VolumeTracker};
 

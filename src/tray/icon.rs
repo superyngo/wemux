@@ -1,6 +1,8 @@
 //! Icon management for tray application
 
-use anyhow::Result;
+use anyhow::{Context, Result};
+use image::GenericImageView;
+use std::path::PathBuf;
 use tray_icon::Icon;
 
 /// Icon manager for different application states
@@ -13,10 +15,9 @@ pub struct IconManager {
 impl IconManager {
     /// Create a new icon manager
     pub fn new() -> Result<Self> {
-        // Generate simple programmatic icons
-        let idle_icon = Self::create_simple_icon([128, 128, 128, 255])?; // Gray
-        let active_icon = Self::create_simple_icon([0, 200, 0, 255])?; // Green
-        let error_icon = Self::create_simple_icon([200, 0, 0, 255])?; // Red
+        let idle_icon = Self::load_icon_from_file("assets/icons/tray/idle.png")?;
+        let active_icon = Self::load_icon_from_file("assets/icons/tray/active.png")?;
+        let error_icon = Self::load_icon_from_file("assets/icons/tray/error.png")?;
 
         Ok(Self {
             idle_icon,
@@ -25,26 +26,45 @@ impl IconManager {
         })
     }
 
-    /// Create a simple solid color icon
-    fn create_simple_icon(color: [u8; 4]) -> Result<Icon> {
-        // Create a 16x16 solid color icon with a border
-        let size = 16;
-        let mut rgba = Vec::with_capacity(size * size * 4);
-
-        for y in 0..size {
-            for x in 0..size {
-                // Create a border
-                if x == 0 || y == 0 || x == size - 1 || y == size - 1 {
-                    // White border
-                    rgba.extend_from_slice(&[255, 255, 255, 255]);
-                } else {
-                    // Fill color
-                    rgba.extend_from_slice(&color);
+    /// Get asset path relative to executable
+    ///
+    /// Searches in order:
+    /// 1. Executable directory (production/MSIX)
+    /// 2. Current working directory (development)
+    fn get_asset_path(relative_path: &str) -> Result<PathBuf> {
+        // Try executable directory first (production/MSIX)
+        if let Ok(exe_path) = std::env::current_exe() {
+            if let Some(exe_dir) = exe_path.parent() {
+                let path = exe_dir.join(relative_path);
+                if path.exists() {
+                    return Ok(path);
                 }
             }
         }
 
-        Ok(Icon::from_rgba(rgba, size as u32, size as u32)?)
+        // Fall back to current working directory (development)
+        let cwd_path = std::env::current_dir()
+            .context("Failed to get current directory")?
+            .join(relative_path);
+
+        if cwd_path.exists() {
+            return Ok(cwd_path);
+        }
+
+        anyhow::bail!(
+            "Asset not found: {} (searched in exe dir and current dir)",
+            relative_path
+        )
+    }
+
+    /// Load icon from PNG file
+    fn load_icon_from_file(path: &str) -> Result<Icon> {
+        let full_path = Self::get_asset_path(path)?;
+        let img = image::open(&full_path)
+            .with_context(|| format!("Failed to load icon: {:?}", full_path))?;
+        let (width, height) = img.dimensions();
+        let rgba = img.into_rgba8().into_raw();
+        Ok(Icon::from_rgba(rgba, width, height)?)
     }
 
     /// Get icon for idle state
