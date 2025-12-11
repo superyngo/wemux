@@ -68,13 +68,26 @@ impl TraySettings {
         Ok(())
     }
 
-    /// Get settings file path (same directory as executable)
+    /// Get settings file path (MSIX-compatible)
+    ///
+    /// When running as MSIX package, settings are stored in LocalAppData.
+    /// For standalone executable, settings are stored alongside the executable.
     fn settings_path() -> PathBuf {
-        std::env::current_exe()
-            .ok()
-            .and_then(|p| p.parent().map(|p| p.to_path_buf()))
-            .unwrap_or_else(|| PathBuf::from("."))
-            .join("wemux-tray.toml")
+        // Check if running as MSIX package
+        if std::env::var("MSIX_PACKAGE_FAMILY_NAME").is_ok() {
+            // Use LocalAppData for MSIX (e.g., %LOCALAPPDATA%\wemux\wemux.toml)
+            dirs::data_local_dir()
+                .unwrap_or_else(|| PathBuf::from("."))
+                .join("wemux")
+                .join("wemux.toml")
+        } else {
+            // Use executable directory for non-MSIX (current behavior)
+            std::env::current_exe()
+                .ok()
+                .and_then(|p| p.parent().map(|p| p.to_path_buf()))
+                .unwrap_or_else(|| PathBuf::from("."))
+                .join("wemux.toml")
+        }
     }
 
     /// Check if a device is enabled in settings

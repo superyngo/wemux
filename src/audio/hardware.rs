@@ -76,7 +76,10 @@ impl HardwareCapabilities {
                 LatencyClass::HighLatency
             };
 
-            info!("Detected latency class: {:?} (min period: {:.2}ms)", latency_class, min_period_ms);
+            info!(
+                "Detected latency class: {:?} (min period: {:.2}ms)",
+                latency_class, min_period_ms
+            );
 
             Ok(Self {
                 min_period,
@@ -141,7 +144,7 @@ impl Default for HardwareCapabilities {
     /// Default capabilities (conservative values for when detection fails)
     fn default() -> Self {
         Self {
-            min_period: 100_000,    // 10ms
+            min_period: 100_000,     // 10ms
             default_period: 100_000, // 10ms
             latency_class: LatencyClass::Standard,
         }
@@ -176,7 +179,7 @@ mod tests {
     #[test]
     fn test_ring_buffer_with_renderers() {
         let caps = HardwareCapabilities {
-            min_period: 50_000,  // 5ms
+            min_period: 50_000,      // 5ms
             default_period: 100_000, // 10ms
             latency_class: LatencyClass::Standard,
         };

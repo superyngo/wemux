@@ -1,10 +1,10 @@
 # wemux
 
-Windows Multi-HDMI Audio Sync - Duplicate system audio to multiple HDMI audio devices simultaneously.
+Windows Multi-HDMI Audio Sync - System tray application for duplicating audio to multiple HDMI devices simultaneously.
 
 ## Overview
 
-wemux captures audio from the Windows system default output device using WASAPI loopback and synchronously plays it to multiple HDMI audio devices. This is useful for scenarios like:
+wemux is a Windows system tray application that captures audio from your default output device using WASAPI loopback and synchronously plays it to multiple HDMI audio devices. This is useful for scenarios like:
 
 - Playing the same audio through multiple TVs/monitors
 - Multi-room audio distribution via HDMI
@@ -12,14 +12,14 @@ wemux captures audio from the Windows system default output device using WASAPI 
 
 ## Features
 
+- **System Tray Interface**: Easy control via system tray icon
+- **Device Toggle**: Enable/disable individual HDMI devices from the menu
 - **WASAPI Loopback Capture**: Captures mixed system audio from the default output
 - **Multi-HDMI Output**: Simultaneously outputs to all detected HDMI audio devices
 - **Master-Slave Sync**: Clock synchronization to keep all outputs in sync
 - **Auto-Detection**: Automatically finds all HDMI audio devices
 - **Hot-Plug Support**: Handles device connection/disconnection gracefully
-- **Low Latency**: Configurable buffer size for latency tuning
-- **System Tray**: Easy control via system tray application with device toggles
-- **Windows Service**: Run as a background service (optional)
+- **Settings Persistence**: Remembers your device preferences
 
 ## Requirements
 
@@ -28,28 +28,13 @@ wemux captures audio from the Windows system default output device using WASAPI 
 
 ## Installation
 
-### Quick Install (Recommended)
+### From Microsoft Store (Coming Soon)
 
-Run in PowerShell:
-
-```powershell
-irm https://raw.githubusercontent.com/superyngo/wemux/main/install.ps1 | iex
-```
-
-To uninstall:
-
-```powershell
-irm https://raw.githubusercontent.com/superyngo/wemux/main/install.ps1 | iex -Uninstall
-```
+wemux will be available on the Microsoft Store for easy installation and automatic updates.
 
 ### Manual Download
 
-Download the latest release from [GitHub Releases](https://github.com/superyngo/wemux/releases):
-
-| Platform | Architecture | Download |
-|----------|--------------|----------|
-| Windows | x86_64 | `wemux-windows-x86_64.exe` |
-| Windows | i686 | `wemux-windows-i686.exe` |
+Download the latest release from [GitHub Releases](https://github.com/superyngo/wemux/releases).
 
 ### From Source
 
@@ -65,63 +50,29 @@ The binary will be at `target/release/wemux.exe`
 
 ## Usage
 
-### List Audio Devices
+Simply run `wemux.exe` - the application will appear in your system tray.
+
+### System Tray Menu
+
+Right-click the tray icon to access:
+
+- **System Output**: Shows current Windows default audio device
+- **Output Devices**: Toggle individual HDMI devices on/off
+- **Start/Stop**: Control audio synchronization
+- **Refresh Devices**: Rescan for HDMI devices
+- **Exit**: Close the application
+
+### Debug Mode
+
+Run with `--debug` flag to show console output:
 
 ```bash
-# List all audio devices
-wemux list
-
-# List only HDMI devices with IDs
-wemux list --hdmi-only --show-ids
+wemux.exe --debug
 ```
 
-### Start Audio Sync
+### Settings
 
-```bash
-# Auto-detect and sync all HDMI devices
-wemux start
-
-# Specify devices by ID or name
-wemux start -d "NVIDIA,Intel"
-
-# Exclude specific devices
-wemux start -e "HDMI 3"
-
-# Custom buffer size (default: 50ms)
-wemux start -b 100
-
-# Verbose output
-wemux start -v
-wemux start -vv  # More verbose
-```
-
-### Show Device Info
-
-```bash
-wemux info "NVIDIA"
-```
-
-## CLI Reference
-
-```
-wemux - Windows Multi-HDMI Audio Sync
-
-USAGE:
-    wemux [OPTIONS] [COMMAND]
-
-COMMANDS:
-    list        List all available audio devices
-    start       Start audio synchronization
-    info        Show detailed device information
-    help        Print help information
-
-OPTIONS:
-    -v, --verbose       Verbose output (can be repeated)
-    -q, --quiet         Quiet mode - only show errors
-    --log <file>        Log output to file
-    -h, --help          Print help
-    -V, --version       Print version
-```
+Device preferences are saved to `wemux.toml` in the same directory as the executable. The file is automatically created and updated when you enable/disable devices.
 
 ## Architecture
 
@@ -158,9 +109,9 @@ OPTIONS:
 
 ## Future Plans
 
-- [x] Windows Service mode (v0.1.0+)
 - [x] System tray application (v0.2.0+)
-- [ ] Configuration file support
+- [x] Device toggle controls (v0.3.0+)
+- [ ] Microsoft Store distribution
 - [ ] Per-device volume control
 - [ ] Format conversion between devices
 - [ ] Auto-update mechanism

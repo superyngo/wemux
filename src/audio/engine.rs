@@ -204,8 +204,8 @@ impl AudioEngine {
 
         // Auto-calculate optimal ring buffer size based on number of renderers
         // Use Standard latency class as default if hardware detection fails
-        let ring_buffer_ms = HardwareCapabilities::default()
-            .optimal_ring_buffer_ms(target_devices.len());
+        let ring_buffer_ms =
+            HardwareCapabilities::default().optimal_ring_buffer_ms(target_devices.len());
         let buffer_size = format.buffer_size_for_ms(ring_buffer_ms);
         let buffer = Arc::new(RingBuffer::new(buffer_size));
         self.buffer = Some(buffer.clone());

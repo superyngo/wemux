@@ -4,31 +4,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-wemux is a Windows-only audio utility that captures system audio via WASAPI loopback and synchronously duplicates it to multiple HDMI audio devices. It's useful for multi-room audio or playing the same audio through multiple TVs/monitors.
+wemux is a Windows-only system tray application that captures system audio via WASAPI loopback and synchronously duplicates it to multiple HDMI audio devices. It's useful for multi-room audio or playing the same audio through multiple TVs/monitors.
 
 ## Build Commands
 
 ```bash
-# Standard build
+# Debug build
 cargo build
 
 # Release build
 cargo build --release
-
-# Build with Windows Service support
-cargo build --release --features service
-
-# Build with System Tray support
-cargo build --release --features tray
-
-# Build all binaries (CLI, service, tray)
-cargo build --release --features service,tray
-
-# Build only the service binary
-cargo build --release --features service --bin wemux-service
-
-# Build only the tray binary
-cargo build --release --features tray --bin wemux-tray
 
 # Format code
 cargo fmt
@@ -40,24 +25,18 @@ cargo clippy
 ## Running
 
 ```bash
-# List audio devices
-cargo run -- list
-cargo run -- list --hdmi-only --show-ids
+# Run in debug mode with console window
+cargo run -- --debug
 
-# Start audio sync (auto-detect HDMI devices)
-cargo run -- start
-
-# Start with specific devices/options
-cargo run -- start -d "NVIDIA,Intel" -b 100 -v
-
-# Show device info
-cargo run -- info "NVIDIA"
-
-# Service management (requires admin privileges)
-cargo run -- service install
-cargo run -- service status
-cargo run -- service uninstall
+# Run normally (no console window)
+cargo run
 ```
+
+The application runs as a system tray icon. Right-click the tray icon to access:
+- Enable/disable individual HDMI devices
+- Start/stop audio synchronization
+- Refresh device list
+- Exit the application
 
 ## Architecture
 
@@ -78,17 +57,12 @@ cargo run -- service uninstall
 - **`src/sync/`** - Clock synchronization
   - `clock.rs` - `ClockSync` for master-slave synchronization across renderers
 
-- **`src/service/`** - Windows Service support (feature-gated)
-  - `runner.rs` - Service main loop
-  - `config.rs` - TOML-based service configuration
-
-- **`src/tray/`** - System tray application (feature-gated)
+- **`src/tray/`** - System tray application
   - `app.rs` - Main tray application loop with Windows message pump
   - `controller.rs` - Engine controller thread managing AudioEngine lifecycle
   - `icon.rs` - Icon management and state-based icon updates
   - `menu.rs` - Dynamic context menu with device toggles
-
-- **`src/config/`** - CLI argument parsing (clap)
+  - `settings.rs` - Device settings persistence (wemux.toml)
 
 ### Threading Model
 
@@ -107,8 +81,8 @@ The `AudioEngine` spawns multiple threads:
 ## Dependencies
 
 - `windows` crate (0.58) for WASAPI and COM APIs
-- `clap` for CLI parsing
+- `tray-icon` and `muda` for system tray support
+- `image` for icon loading
 - `crossbeam-channel` for inter-thread communication
 - `parking_lot` for mutexes
-- `windows-service` (optional) for Windows Service support
-- `tray-icon` and `muda` (optional) for system tray support
+- `serde` and `toml` for settings persistence

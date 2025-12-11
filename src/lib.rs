@@ -1,32 +1,12 @@
 //! wemux - Windows Multi-HDMI Audio Sync
 //!
-//! This library provides functionality to capture system audio output
-//! and synchronously play it to multiple HDMI audio devices.
-//!
-//! # Example
-//!
-//! ```no_run
-//! use wemux::audio::{AudioEngine, EngineConfig};
-//!
-//! let config = EngineConfig::default();
-//! let mut engine = AudioEngine::new(config);
-//!
-//! // Start audio synchronization
-//! engine.start().expect("Failed to start engine");
-//!
-//! // ... engine runs until stopped
-//!
-//! engine.stop().expect("Failed to stop engine");
-//! ```
+//! System tray application for duplicating system audio output
+//! to multiple HDMI audio devices.
 
 pub mod audio;
-pub mod config;
 pub mod device;
 pub mod error;
-pub mod service;
 pub mod sync;
-
-#[cfg(feature = "tray")]
 pub mod tray;
 
 pub use error::{Result, WemuxError};

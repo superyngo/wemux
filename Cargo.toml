@@ -1,29 +1,14 @@
 [package]
 name = "wemux"
-version = "0.2.1"
+version = "0.3.0"
 edition = "2021"
 authors = ["wen"]
-description = "Windows Multi-HDMI Audio Sync - Duplicate system audio to multiple HDMI devices"
+description = "Windows Multi-HDMI Audio Sync - System tray application for duplicating audio to multiple HDMI devices"
 license = "MIT"
 
 [[bin]]
 name = "wemux"
 path = "src/main.rs"
-
-[[bin]]
-name = "wemux-service"
-path = "src/bin/wemux-service.rs"
-required-features = ["service"]
-
-[[bin]]
-name = "wemux-tray"
-path = "src/bin/wemux-tray.rs"
-required-features = ["tray"]
-
-[features]
-default = []
-service = ["windows-service"]
-tray = ["tray-icon", "muda", "image"]
 
 [dependencies]
 # Windows API bindings
@@ -44,13 +29,10 @@ windows = { version = "0.58", features = [
 ]}
 windows-core = "0.58"
 
-# System tray (optional)
-tray-icon = { version = "0.19", optional = true }
-muda = { version = "0.15", optional = true }
-image = { version = "0.25", optional = true }
-
-# CLI
-clap = { version = "4", features = ["derive"] }
+# System tray
+tray-icon = "0.19"
+muda = "0.15"
+image = "0.25"
 
 # Logging
 tracing = "0.1"
@@ -69,10 +51,6 @@ serde = { version = "1", features = ["derive"] }
 toml = "0.8"
 dirs = "5"
 
-# Signal handling
-[target.'cfg(windows)'.dependencies]
-ctrlc = "3"
-windows-service = { version = "0.7", optional = true }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }

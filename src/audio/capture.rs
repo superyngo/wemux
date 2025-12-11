@@ -84,7 +84,10 @@ impl LoopbackCapture {
             let buffer_duration = crate::audio::HardwareCapabilities::query(&audio_client)
                 .map(|caps| caps.optimal_buffer_duration())
                 .unwrap_or_else(|e| {
-                    debug!("Failed to query hardware capabilities: {}, using default 35ms", e);
+                    debug!(
+                        "Failed to query hardware capabilities: {}, using default 35ms",
+                        e
+                    );
                     350_000i64 // 35ms fallback
                 });
 

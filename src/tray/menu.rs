@@ -114,8 +114,13 @@ impl MenuManager {
 
         menu.append(&PredefinedMenuItem::separator())?;
 
-        // Version info (non-clickable)
-        self.status_item = MenuItem::new("wemux v0.1.1 by wen", false, None);
+        // Version info (non-clickable) - auto-generated from Cargo.toml
+        let version_text = format!(
+            "wemux v{} by {}",
+            env!("CARGO_PKG_VERSION"),
+            env!("CARGO_PKG_AUTHORS")
+        );
+        self.status_item = MenuItem::new(&version_text, false, None);
         menu.append(&self.status_item)?;
 
         // Exit

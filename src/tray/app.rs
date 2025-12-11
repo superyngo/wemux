@@ -45,6 +45,7 @@ pub struct TrayApp {
     status_rx: Receiver<EngineStatus>,
     controller_handle: Option<JoinHandle<()>>,
     exit_flag: Arc<AtomicBool>,
+    is_running: bool,
 }
 
 impl TrayApp {
@@ -69,6 +70,7 @@ impl TrayApp {
             status_rx,
             controller_handle: Some(controller_handle),
             exit_flag,
+            is_running: false,
         })
     }
 
@@ -81,6 +83,7 @@ impl TrayApp {
         let icon = self.icon_manager.get_idle_icon()?;
         let tray_icon = TrayIconBuilder::new()
             .with_menu(Box::new(menu))
+            .with_menu_on_left_click(false) // Only show menu on right-click
             .with_tooltip("wemux - Audio Sync")
             .with_icon(icon)
             .build()?;
@@ -182,11 +185,18 @@ impl TrayApp {
                 button: MouseButton::Left,
                 ..
             } => {
-                // Left click - could show a popup or do nothing
-                info!("Tray icon left clicked");
+                // Left click - toggle start/stop
+                info!("Tray icon left clicked - toggling engine");
+                if self.is_running {
+                    info!("Stopping engine via left-click");
+                    self.command_tx.send(TrayCommand::Stop)?;
+                } else {
+                    info!("Starting engine via left-click");
+                    self.command_tx.send(TrayCommand::Start)?;
+                }
             }
             TrayIconEvent::DoubleClick { .. } => {
-                // Double click - could toggle engine
+                // Double click - do nothing (already handled by single click)
                 info!("Tray icon double clicked");
             }
             _ => {}
@@ -251,8 +261,9 @@ impl TrayApp {
             }
             EngineStatus::EngineStateChanged(state) => {
                 info!("Engine state changed: {:?}", state);
-                self.menu_manager
-                    .update_engine_state(state == EngineState::Running)?;
+                let is_running = state == EngineState::Running;
+                self.is_running = is_running;
+                self.menu_manager.update_engine_state(is_running)?;
 
                 let icon = match state {
                     EngineState::Running => self.icon_manager.get_active_icon()?,

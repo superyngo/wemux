@@ -67,7 +67,11 @@ impl RingBuffer {
                 std::ptr::copy_nonoverlapping(data.as_ptr(), ptr.add(start_pos), first_chunk_len);
                 // Copy remaining data to start of buffer
                 let remaining_len = data.len() - first_chunk_len;
-                std::ptr::copy_nonoverlapping(data.as_ptr().add(first_chunk_len), ptr, remaining_len);
+                std::ptr::copy_nonoverlapping(
+                    data.as_ptr().add(first_chunk_len),
+                    ptr,
+                    remaining_len,
+                );
             }
 
             // Memory fence to ensure all writes are visible before updating write position
@@ -112,10 +116,18 @@ impl RingBuffer {
             } else {
                 // Two copies needed - wrap around ring buffer
                 // Copy first chunk from end of buffer
-                std::ptr::copy_nonoverlapping(ptr.add(start_pos), buf.as_mut_ptr(), first_chunk_len);
+                std::ptr::copy_nonoverlapping(
+                    ptr.add(start_pos),
+                    buf.as_mut_ptr(),
+                    first_chunk_len,
+                );
                 // Copy remaining data from start of buffer
                 let remaining_len = to_read - first_chunk_len;
-                std::ptr::copy_nonoverlapping(ptr, buf.as_mut_ptr().add(first_chunk_len), remaining_len);
+                std::ptr::copy_nonoverlapping(
+                    ptr,
+                    buf.as_mut_ptr().add(first_chunk_len),
+                    remaining_len,
+                );
             }
 
             // Memory fence to ensure all reads complete before updating read position
