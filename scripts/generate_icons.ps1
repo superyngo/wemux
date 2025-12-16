@@ -7,7 +7,7 @@
 # This script generates all required MSIX icon sizes from the existing tray icon
 
 param(
-    [string]$SourceIcon = "assets\icons\tray\idle.png",
+    [string]$SourceIcon = "assets\icons\tray\active.png",
     [string]$OutputDir = "packaging\assets"
 )
 

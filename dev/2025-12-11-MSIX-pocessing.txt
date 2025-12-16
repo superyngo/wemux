@@ -472,15 +472,26 @@
   4. 保留應用程式名稱："wemux"
   5. 前往 "Product management" → "Product Identity"
   6. 複製以下值：
-  Package/Identity/Name: [例如: 12345SuperYngo.wemux]
-  Package/Identity/Publisher: [例如:
-  CN=XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX]
+
+Package/Identity/Name WENAN.wemux
+Package/Identity/Publisher CN=2B98008C-550F-4198-A37B-C393A29FE133
+Package/Properties/PublisherDisplayName WenanLin Studio
+
+Package Family Name (PFN)
+WENAN.wemux_cdfcsastjam40 
+
+Package SID
+S-1-15-2-221965330-1057093459-1838065307-1859299465-2717253935-2539139328-3408260406
+
+Store ID
+9P1B5NGRDH6T 
+
   7. 編輯 packaging/AppxManifest.xml：
   <!-- 找到這些行（第 35-37 行）-->
   <Identity
-    Name="PLACEHOLDER.wemux"
-    Publisher="CN=PLACEHOLDER"
-    Version="0.3.0.0" />
+    Name="WENAN.wemux"
+    Publisher="CN=2B98008C-550F-4198-A37B-C393A29FE133"
+    Version="0.3.2" />
 
   <!-- 替換為您的實際值 -->
   <Identity
@@ -488,7 +499,7 @@
     Publisher="CN=XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
     Version="0.3.0.0" />
   8. 同時更新發行者顯示名稱（第 42 行）：
-  <PublisherDisplayName>SuperYngo</PublisherDisplayName>
+  <PublisherDisplayName>WenanLin Studio</PublisherDisplayName>
 
   2️⃣ 生成 MSIX 圖示素材
 

@@ -28,15 +28,15 @@
   xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10">
 
   <Identity
-    Name="PLACEHOLDER.wemux"
-    Publisher="CN=PLACEHOLDER"
-    Version="0.3.0.0" />
+    Name="12345SuperYngo.wemux"
+    Publisher="CN=XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
+    Version="0.3.1.0" />
 
   <Properties>
     <DisplayName>wemux</DisplayName>
-    <PublisherDisplayName>Your Name</PublisherDisplayName>
+    <PublisherDisplayName>WenanLin Studio</PublisherDisplayName>
     <Logo>assets\StoreLogo.png</Logo>
-    <Description>Windows Multi-HDMI Audio Sync - Duplicate system audio to multiple HDMI devices simultaneously</Description>
+    <Description>Windows Multi Audio Sync - Duplicate system audio to multiple audio devices simultaneously</Description>
   </Properties>
 
   <Dependencies>
