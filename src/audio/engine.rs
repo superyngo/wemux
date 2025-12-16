@@ -687,27 +687,25 @@ fn device_monitor_thread(
                         // 2. Notify volume tracker to reinitialize
                         let _ = volume_event_tx.send(event.clone());
 
-                        // 3. Check if new default is one of our HDMI renderers
+                        // 3. Update HDMI renderers based on new default device
                         let controls = renderer_controls.lock();
-                        let mut found_match = false;
 
+                        // Store previous default for comparison
+                        let previous_default = current_default_id.lock().clone();
+                        
                         for (id, control) in controls.iter() {
                             if id == device_id {
                                 // This renderer's device is now the default output
                                 // Pause it to avoid echo/feedback
                                 info!("Pausing renderer for device: {} (now default output)", id);
                                 control.paused.store(true, Ordering::SeqCst);
-                                found_match = true;
-                            } else {
-                                // Resume other renderers that were auto-paused due to being system default
-                                // Note: We don't resume here as we want user-paused devices to stay paused
-                                // The paused flag is only auto-set when device becomes default
+                            } else if Some(id.as_str()) == previous_default.as_deref() {
+                                // This was the previous default device, it's no longer default
+                                // Resume it since the pause was due to being system default
+                                info!("Resuming renderer for device: {} (no longer default output)", id);
+                                control.paused.store(false, Ordering::SeqCst);
                             }
-                        }
-
-                        if !found_match {
-                            // Default changed to non-HDMI device, resume all renderers
-                            debug!("Default device is not an HDMI renderer, all renderers active");
+                            // Other devices: leave their state unchanged to preserve user settings
                         }
 
                         // 4. Notify external listeners (UI) to refresh

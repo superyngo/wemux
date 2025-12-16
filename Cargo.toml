@@ -1,6 +1,6 @@
 [package]
 name = "wemux"
-version = "0.3.0"
+version = "0.3.1"
 edition = "2021"
 authors = ["wen"]
 description = "Windows Multi-HDMI Audio Sync - System tray application for duplicating audio to multiple HDMI devices"

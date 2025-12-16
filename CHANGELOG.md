@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] - 2025-12-16
+
+### Added
+
+- Bug fixes and improvements
+
 ## [0.2.1] - 2025-12-11
 
 ### Added
@@ -97,7 +103,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `sync/clock.rs` - Master-slave clock synchronization
 - `config/args.rs` - CLI argument parsing with clap
 
-[Unreleased]: https://github.com/superyngo/wemux/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/superyngo/wemux/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/superyngo/wemux/compare/v0.3.0...v0.3.1
+[0.3.0]: https://github.com/superyngo/wemux/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/superyngo/wemux/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/superyngo/wemux/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/superyngo/wemux/compare/v0.1.0...v0.1.1
