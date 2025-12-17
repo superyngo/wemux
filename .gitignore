@@ -22,4 +22,6 @@ Thumbs.db
 .env
 .env.local
 
-
+# packages
+*.msix
+*.exe

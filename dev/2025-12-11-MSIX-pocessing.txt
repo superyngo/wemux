@@ -563,6 +563,26 @@ Store ID
   - 年齡分級： 完成問卷（預計 3+ / 所有人）
   - 定價： 免費
 
+
+wemux_0.3.1_x64.msix2.2 MB
+套件接受度驗證警告: The following restricted capabilities require approval before you can use them in your app: runFullTrust.
+
+This app requires runFullTrust capability for the following reasons:
+
+1. WASAPI Audio Loopback Capture: The core functionality requires Windows Audio 
+   Session API (WASAPI) loopback capture to duplicate system audio output to 
+   multiple audio devices simultaneously.
+
+2. System Tray Integration: Provides a Windows system tray application for 
+   background audio synchronization control.
+
+3. Low-level Hardware Access: Direct audio device enumeration and real-time 
+   audio rendering requires unrestricted access to audio subsystem.
+
+Without runFullTrust, the app cannot perform its primary function of 
+multi-device audio synchronization.
+
+
   7️⃣ 提交到 Microsoft Store
 
   1. 上傳 wemux_0.3.0_x64.msix

@@ -49,7 +49,7 @@ $iconSizes = @{
     "Square44x44Logo.png" = @{ Width = 44; Height = 44; Description = "App list, taskbar" }
     "Square71x71Logo.png" = @{ Width = 71; Height = 71; Description = "Small tile" }
     "Square150x150Logo.png" = @{ Width = 150; Height = 150; Description = "Medium tile" }
-    "Square310x310Logo.png" = @{ Width = 310; Height = 310; Description = "Large tile" }
+    "Square300x300Logo.png" = @{ Width = 300; Height = 300; Description = "Large tile" }
     "StoreLogo.png" = @{ Width = 50; Height = 50; Description = "Microsoft Store" }
 }
 
@@ -80,14 +80,14 @@ foreach ($filename in $iconSizes.Keys | Sort-Object) {
 # Generate wide tile (different aspect ratio)
 Write-Host ""
 Write-Host "Generating wide tile..." -ForegroundColor Yellow
-$wideOutput = Join-Path $OutputDir "Wide310x150Logo.png"
-Write-Host "  → Wide310x150Logo.png (310x150) - Wide tile" -ForegroundColor White
+$wideOutput = Join-Path $OutputDir "Wide300x150Logo.png"
+Write-Host "  → Wide300x150Logo.png (300x150) - Wide tile" -ForegroundColor White
 
 & magick convert $SourceIcon `
     -resize "150x150" `
     -background transparent `
     -gravity center `
-    -extent "310x150" `
+    -extent "300x150" `
     $wideOutput
 
 if ($LASTEXITCODE -ne 0) {
@@ -95,7 +95,7 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
-Write-Host "    ✓ Created Wide310x150Logo.png" -ForegroundColor Green
+Write-Host "    ✓ Created Wide300x150Logo.png" -ForegroundColor Green
 
 # Generate splash screen (optional)
 Write-Host ""

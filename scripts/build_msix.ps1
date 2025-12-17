@@ -186,7 +186,8 @@ Write-Host "  ✓ Copied $iconCount icon files" -ForegroundColor Green
 Write-Host ""
 Write-Host "Step 4/6: Updating manifest version..." -ForegroundColor Cyan
 $manifestContent = Get-Content $manifestTemplate -Raw
-$manifestContent = $manifestContent -replace 'Version="[\d\.]+"', "Version=`"$Version`""
+# Match only the Version attribute in the Identity element (case-sensitive, with surrounding context)
+$manifestContent = $manifestContent -replace '(<Identity[^>]+Version=)"[\d\.]+"', "`$1`"$Version`""
 $manifestPath = Join-Path $stagingDir "AppxManifest.xml"
 Set-Content -Path $manifestPath -Value $manifestContent -Encoding UTF8
 Write-Host "  ✓ Manifest version set to: $Version" -ForegroundColor Green

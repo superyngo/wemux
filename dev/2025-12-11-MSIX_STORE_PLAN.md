@@ -9,15 +9,18 @@ This document outlines the complete implementation plan for packaging wemux as a
 ## 1. Prerequisites
 
 ### 1.1 Microsoft Store Account
+
 - [ ] Register for Microsoft Partner Center account ($19 one-time fee for individuals, $99 for companies)
 - [ ] Complete tax and payout information
 - [ ] Reserve app name "wemux" in Partner Center
 
 ### 1.2 Code Signing Certificate
+
 - [ ] Obtain EV (Extended Validation) code signing certificate for Microsoft Store submission
 - [ ] Alternative: Use Partner Center's internal signing (recommended for easier workflow)
 
 ### 1.3 Development Tools
+
 - [ ] Install Windows 10 SDK (includes `makeappx.exe`, `signtool.exe`)
 - [ ] Install Visual Studio 2022 (optional, but provides GUI tools)
 - [ ] Install MSIX Packaging Tool (optional, for testing)
@@ -122,15 +125,15 @@ wemux/
 
 Create PNG icons with transparency:
 
-| File Name | Size | Purpose |
-|-----------|------|---------|
-| `Square44x44Logo.png` | 44x44 | App list, taskbar |
-| `Square71x71Logo.png` | 71x71 | Small tile |
-| `Square150x150Logo.png` | 150x150 | Medium tile |
-| `Square310x310Logo.png` | 310x310 | Large tile |
-| `Wide310x150Logo.png` | 310x150 | Wide tile |
-| `StoreLogo.png` | 50x50 | Microsoft Store |
-| `SplashScreen.png` | 620x300 | Launch screen (optional) |
+| File Name               | Size    | Purpose                  |
+| ----------------------- | ------- | ------------------------ |
+| `Square44x44Logo.png`   | 44x44   | App list, taskbar        |
+| `Square71x71Logo.png`   | 71x71   | Small tile               |
+| `Square150x150Logo.png` | 150x150 | Medium tile              |
+| `Square310x310Logo.png` | 310x310 | Large tile               |
+| `Wide310x150Logo.png`   | 310x150 | Wide tile                |
+| `StoreLogo.png`         | 50x50   | Microsoft Store          |
+| `SplashScreen.png`      | 620x300 | Launch screen (optional) |
 
 ### 3.2 Icon Design Guidelines
 
@@ -211,6 +214,7 @@ fn settings_path() -> PathBuf {
 ```
 
 **Benefits:**
+
 - MSIX packages: Settings stored in `%LOCALAPPDATA%\wemux\wemux.toml`
 - Standalone EXE: Settings stored alongside executable (current behavior)
 - Survives package updates
@@ -393,12 +397,14 @@ Get-AppxPackage *wemux* | Remove-AppxPackage
 ### 7.1 Partner Center Setup
 
 1. **Create New App:**
+
    - Navigate to https://partner.microsoft.com/dashboard
    - Select "Apps and games" → "New product"
    - Choose "MSIX or PWA app"
    - Reserve name: "wemux"
 
 2. **App Identity:**
+
    - Note down the generated values:
      - Package/Identity/Name
      - Package/Identity/Publisher
@@ -414,16 +420,17 @@ Get-AppxPackage *wemux* | Remove-AppxPackage
 **Required Fields:**
 
 - **Description (500-10,000 characters):**
+
   ```
   wemux is a powerful Windows audio utility that duplicates your system audio
-  to multiple HDMI devices simultaneously. Perfect for multi-room audio setups,
-  presentations, or playing audio through multiple TVs/monitors at once.
+  to multiple audio output devices simultaneously. Perfect for multi-room audio setups,
+  presentations, or playing audio through multiple speakers, headphones, or displays at once.
 
   KEY FEATURES:
   • Easy system tray interface - control everything with a right-click
-  • Toggle individual HDMI devices on/off
+  • Toggle individual audio devices on/off
   • Low-latency audio synchronization across all devices
-  • Automatic HDMI device detection
+  • Automatic audio device detection
   • Hot-plug support for connecting/disconnecting devices
   • Remembers your device preferences
 
@@ -435,11 +442,64 @@ Get-AppxPackage *wemux* | Remove-AppxPackage
   Perfect for:
   - Multi-room audio distribution
   - Presentation setups with multiple displays
-  - Entertainment systems with multiple TVs
-  - Any scenario requiring synchronized audio across HDMI outputs
+  - Entertainment systems with multiple audio devices
+  - Any scenario requiring synchronized audio across multiple outputs
   ```
 
+基於 wemux 的功能，我為您構思了以下產品功能列表（繁體中文版本）：
+
+## App 功能列表（最多 20 項）
+
+1. **同步輸出至多個音訊裝置** - 同時將系統音訊傳送到所有已啟用的音訊輸出裝置
+2. **系統托盤快速控制** - 右鍵點擊托盤圖示即可控制所有功能
+3. **個別裝置開關切換** - 獨立控制每個音訊裝置的啟用或停用
+4. **低延遲音訊同步** - 所有裝置之間的音訊延遲小於 50 毫秒
+5. **自動偵測音訊裝置** - 自動識別系統中所有可用的音訊輸出裝置
+6. **熱插拔即時支援** - 連接或拔除裝置時自動更新裝置列表
+7. **記憶裝置偏好設定** - 自動儲存您的裝置啟用狀態和設定
+8. **高品質音訊擷取** - 使用 WASAPI 環回技術確保無損音質
+9. **主從時鐘精確同步** - 專業級時鐘同步演算法保持音訊一致性
+10. **輕量級背景運行** - 低 CPU 和記憶體使用率，不影響系統效能
+11. **即時音訊處理** - 無緩衝延遲的即時音訊串流
+12. **支援所有音訊格式** - 相容系統支援的所有音訊編碼格式
+13. **視覺化狀態指示** - 托盤圖示顯示當前運作狀態（閒置/工作中/錯誤）
+14. **一鍵啟動/停止引擎** - 快速切換音訊同步功能的開關
+15. **智慧錯誤處理** - 自動偵測並處理裝置連線問題
+16. **跨裝置音量同步** - 保持所有輸出裝置的音量一致
+17. **支援 Windows 10 與 11** - 完整相容最新和舊版 Windows 系統
+18. **無需額外驅動程式** - 使用 Windows 原生音訊 API，無需安裝驅動
+19. **多房間音訊分配** - 適合家庭或辦公室的多房間音響系統
+20. **簡潔直覺的使用介面** - 無複雜設定，安裝後立即可用
+
+---
+
+## 英文版本（供參考）
+
+1. **Sync audio to multiple devices** - Simultaneously output system audio to all enabled audio devices
+2. **System tray quick control** - Right-click tray icon for instant access to all features
+3. **Individual device toggle** - Independently enable or disable each audio device
+4. **Low-latency audio sync** - Less than 50ms latency between all devices
+5. **Automatic device detection** - Auto-discover all available audio output devices
+6. **Hot-plug support** - Instantly detect newly connected or removed devices
+7. **Remember device preferences** - Automatically save your device settings
+8. **High-quality audio capture** - Lossless audio using WASAPI loopback technology
+9. **Master-slave clock sync** - Professional-grade synchronization algorithm
+10. **Lightweight background operation** - Minimal CPU and memory footprint
+11. **Real-time audio processing** - Zero-buffer delay audio streaming
+12. **Support all audio formats** - Compatible with all system-supported codecs
+13. **Visual status indicators** - Tray icon shows current state (idle/active/error)
+14. **One-click engine toggle** - Quickly start or stop audio synchronization
+15. **Smart error handling** - Auto-detect and handle device connection issues
+16. **Cross-device volume sync** - Maintain consistent volume across outputs
+17. **Windows 10 & 11 support** - Full compatibility with modern Windows versions
+18. **No additional drivers needed** - Uses native Windows audio APIs
+19. **Multi-room audio distribution** - Perfect for home or office sound systems
+20. **Clean intuitive interface** - Ready to use right after installation
+
+這些功能涵蓋了技術特性、使用者體驗和應用場景，可以根據實際需求調整順序或內容。
+
 - **Screenshots (3-10 required):**
+
   - System tray icon and menu
   - Device selection dialog
   - Settings view
@@ -455,10 +515,12 @@ Get-AppxPackage *wemux* | Remove-AppxPackage
 ### 7.3 Package Upload
 
 1. **Prepare Upload:**
+
    - Build final MSIX package (unsigned)
    - Microsoft will sign it automatically
 
 2. **Upload Process:**
+
    - Navigate to "Packages" section
    - Upload `wemux_0.3.0.0_x64.msix`
    - System validates package automatically
@@ -474,11 +536,13 @@ Get-AppxPackage *wemux* | Remove-AppxPackage
 ### 7.4 Certification Process
 
 **Timeline:**
+
 - Automated testing: 1-3 hours
 - Manual review: 1-3 business days
 - Total: Usually 24-48 hours
 
 **Common Rejection Reasons:**
+
 - Missing privacy policy (required even for free apps)
 - Icon issues (wrong sizes, poor quality)
 - App crashes during testing
@@ -488,6 +552,7 @@ Get-AppxPackage *wemux* | Remove-AppxPackage
 ### 7.5 Privacy Policy
 
 **Required Content:**
+
 ```
 Privacy Policy for wemux
 
@@ -520,13 +585,13 @@ Host this at: `https://github.com/superyngo/wemux/blob/main/PRIVACY.md`
 
 **Location:** `.github/workflows/msix-release.yml`
 
-```yaml
+````yaml
 name: MSIX Release
 
 on:
   push:
     tags:
-      - 'v*.*.*'
+      - "v*.*.*"
 
 permissions:
   contents: write
@@ -536,74 +601,74 @@ jobs:
     runs-on: windows-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Setup Rust
-      uses: dtolnay/rust-toolchain@stable
-      with:
-        targets: x86_64-pc-windows-msvc
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
 
-    - name: Cache Rust dependencies
-      uses: Swatinem/rust-cache@v2
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
 
-    - name: Extract version from tag
-      id: version
-      run: |
-        $tag = "${{ github.ref_name }}"
-        $version = $tag -replace '^v', ''
-        echo "VERSION=$version" >> $env:GITHUB_OUTPUT
-        echo "VERSION_QUAD=$version.0" >> $env:GITHUB_OUTPUT
+      - name: Extract version from tag
+        id: version
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $version = $tag -replace '^v', ''
+          echo "VERSION=$version" >> $env:GITHUB_OUTPUT
+          echo "VERSION_QUAD=$version.0" >> $env:GITHUB_OUTPUT
 
-    - name: Build release
-      run: cargo build --release
+      - name: Build release
+        run: cargo build --release
 
-    - name: Setup packaging directory
-      run: |
-        New-Item -ItemType Directory -Force -Path packaging\staging
-        New-Item -ItemType Directory -Force -Path packaging\staging\assets
+      - name: Setup packaging directory
+        run: |
+          New-Item -ItemType Directory -Force -Path packaging\staging
+          New-Item -ItemType Directory -Force -Path packaging\staging\assets
 
-    - name: Copy files to staging
-      run: |
-        Copy-Item target\release\wemux.exe packaging\staging\
-        Copy-Item assets\*.png packaging\staging\assets\
-        Copy-Item packaging\assets\*.png packaging\staging\assets\ -Force
+      - name: Copy files to staging
+        run: |
+          Copy-Item target\release\wemux.exe packaging\staging\
+          Copy-Item assets\*.png packaging\staging\assets\
+          Copy-Item packaging\assets\*.png packaging\staging\assets\ -Force
 
-    - name: Update manifest version
-      run: |
-        $version = "${{ steps.version.outputs.VERSION_QUAD }}"
-        $manifest = Get-Content packaging\AppxManifest.xml -Raw
-        $manifest = $manifest -replace 'Version="[\d\.]+"', "Version=`"$version`""
-        Set-Content packaging\staging\AppxManifest.xml -Value $manifest
+      - name: Update manifest version
+        run: |
+          $version = "${{ steps.version.outputs.VERSION_QUAD }}"
+          $manifest = Get-Content packaging\AppxManifest.xml -Raw
+          $manifest = $manifest -replace 'Version="[\d\.]+"', "Version=`"$version`""
+          Set-Content packaging\staging\AppxManifest.xml -Value $manifest
 
-    - name: Create MSIX package
-      run: |
-        $version = "${{ steps.version.outputs.VERSION }}"
-        & makeappx.exe pack /d packaging\staging /p "wemux_${version}_x64.msix" /o
+      - name: Create MSIX package
+        run: |
+          $version = "${{ steps.version.outputs.VERSION }}"
+          & makeappx.exe pack /d packaging\staging /p "wemux_${version}_x64.msix" /o
 
-    - name: Upload MSIX to release
-      uses: softprops/action-gh-release@v1
-      with:
-        files: |
-          wemux_${{ steps.version.outputs.VERSION }}_x64.msix
-        body: |
-          ## wemux v${{ steps.version.outputs.VERSION }}
+      - name: Upload MSIX to release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            wemux_${{ steps.version.outputs.VERSION }}_x64.msix
+          body: |
+            ## wemux v${{ steps.version.outputs.VERSION }}
 
-          ### Downloads
-          - **MSIX Package (Microsoft Store format):** `wemux_${{ steps.version.outputs.VERSION }}_x64.msix`
+            ### Downloads
+            - **MSIX Package (Microsoft Store format):** `wemux_${{ steps.version.outputs.VERSION }}_x64.msix`
 
-          ### Installation
-          - Download the MSIX file
-          - Enable Developer Mode in Windows Settings
-          - Double-click to install
+            ### Installation
+            - Download the MSIX file
+            - Enable Developer Mode in Windows Settings
+            - Double-click to install
 
-          Or install via PowerShell:
-          ```powershell
-          Add-AppxPackage -Path wemux_${{ steps.version.outputs.VERSION }}_x64.msix
-          ```
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-```
+            Or install via PowerShell:
+            ```powershell
+            Add-AppxPackage -Path wemux_${{ steps.version.outputs.VERSION }}_x64.msix
+            ```
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+````
 
 ---
 
@@ -612,11 +677,13 @@ jobs:
 ### 9.1 Microsoft Store Auto-Updates
 
 **Advantages:**
+
 - Automatic updates handled by Windows
 - User doesn't need to do anything
 - Delta updates (only changed files downloaded)
 
 **Implementation:**
+
 - Simply publish new version to Store
 - Users get updates automatically within 24-48 hours
 
@@ -653,6 +720,7 @@ pub async fn check_for_updates() -> Result<Option<String>> {
 ## 10. Implementation Checklist
 
 ### Phase 1: Preparation (Week 1)
+
 - [ ] Register Microsoft Partner Center account
 - [ ] Reserve "wemux" app name
 - [ ] Create privacy policy and host on GitHub
@@ -660,6 +728,7 @@ pub async fn check_for_updates() -> Result<Option<String>> {
 - [ ] Update settings.rs for MSIX compatibility
 
 ### Phase 2: Local MSIX Build (Week 2)
+
 - [ ] Create `packaging/` directory structure
 - [ ] Write `AppxManifest.xml` with proper identity
 - [ ] Create `build_msix.ps1` script
@@ -669,6 +738,7 @@ pub async fn check_for_updates() -> Result<Option<String>> {
 - [ ] Test tray icon functionality in MSIX environment
 
 ### Phase 3: Store Preparation (Week 3)
+
 - [ ] Take application screenshots
 - [ ] Write Store description
 - [ ] Complete age rating questionnaire
@@ -677,6 +747,7 @@ pub async fn check_for_updates() -> Result<Option<String>> {
 - [ ] Test workflow with pre-release tag
 
 ### Phase 4: First Submission (Week 4)
+
 - [ ] Build final MSIX package
 - [ ] Submit to Microsoft Store
 - [ ] Monitor certification status
@@ -684,6 +755,7 @@ pub async fn check_for_updates() -> Result<Option<String>> {
 - [ ] Publish after approval
 
 ### Phase 5: Post-Launch
+
 - [ ] Monitor Store reviews
 - [ ] Set up automated MSIX builds in CI/CD
 - [ ] Plan update schedule
@@ -694,13 +766,13 @@ pub async fn check_for_updates() -> Result<Option<String>> {
 
 ## 11. Cost Breakdown
 
-| Item | Cost | Frequency |
-|------|------|-----------|
-| Microsoft Partner Center (Individual) | $19 USD | One-time |
-| Microsoft Partner Center (Company) | $99 USD | One-time |
-| EV Code Signing Certificate | $0 | N/A (Store signs automatically) |
-| Domain for Privacy Policy | $10-15/year | Optional (can use GitHub) |
-| **Total (Individual)** | **$19** | **One-time** |
+| Item                                  | Cost        | Frequency                       |
+| ------------------------------------- | ----------- | ------------------------------- |
+| Microsoft Partner Center (Individual) | $19 USD     | One-time                        |
+| Microsoft Partner Center (Company)    | $99 USD     | One-time                        |
+| EV Code Signing Certificate           | $0          | N/A (Store signs automatically) |
+| Domain for Privacy Policy             | $10-15/year | Optional (can use GitHub)       |
+| **Total (Individual)**                | **$19**     | **One-time**                    |
 
 ---
 
@@ -736,12 +808,14 @@ ManifestVersion: 1.0.0
 4. Users can install via: `winget install wemux`
 
 **Advantages:**
+
 - Free
 - Simpler than Store
 - Developer-friendly
 - Good for power users
 
 **Disadvantages:**
+
 - No automatic updates UI
 - Less discoverability
 - Requires manual version updates
@@ -753,22 +827,27 @@ ManifestVersion: 1.0.0
 ### Common MSIX Issues
 
 **Issue 1: "The package could not be registered"**
+
 - **Solution:** Enable Developer Mode in Windows Settings
 - **Alternative:** Sign package with trusted certificate
 
 **Issue 2: Settings file not writable**
+
 - **Solution:** Verify settings path uses `%LOCALAPPDATA%` for MSIX
 - **Check:** Review settings.rs implementation
 
 **Issue 3: Icons not displaying**
+
 - **Solution:** Verify all icon files exist in `assets/` folder
 - **Check:** Ensure PNG format and correct sizes
 
 **Issue 4: App crashes on launch**
+
 - **Solution:** Test non-MSIX version first
 - **Debug:** Use `--debug` flag and check logs
 
 **Issue 5: Audio capture fails**
+
 - **Solution:** Verify `runFullTrust` capability in manifest
 - **Check:** COM initialization working correctly
 
@@ -777,16 +856,19 @@ ManifestVersion: 1.0.0
 ## 14. Next Steps
 
 1. **Immediate:**
+
    - Update `src/tray/settings.rs` for MSIX compatibility
    - Create packaging directory structure
    - Generate icon assets
 
 2. **Short-term (This Month):**
+
    - Register Partner Center account
    - Build and test local MSIX
    - Write privacy policy
 
 3. **Medium-term (Next Month):**
+
    - Submit to Microsoft Store
    - Set up automated builds
    - Monitor first reviews
@@ -801,16 +883,19 @@ ManifestVersion: 1.0.0
 ## Resources
 
 ### Documentation
+
 - [MSIX Packaging Documentation](https://docs.microsoft.com/en-us/windows/msix/)
 - [Microsoft Store Policies](https://docs.microsoft.com/en-us/windows/apps/publish/store-policies)
 - [Partner Center Guide](https://docs.microsoft.com/en-us/windows/apps/publish/)
 
 ### Tools
+
 - [Windows SDK](https://developer.microsoft.com/en-us/windows/downloads/windows-sdk/)
 - [MSIX Packaging Tool](https://www.microsoft.com/en-us/p/msix-packaging-tool/9n5lw3jbcxkf)
 - [App Installer](https://www.microsoft.com/en-us/p/app-installer/9nblggh4nns1)
 
 ### Community
+
 - [MSIX Tech Community](https://techcommunity.microsoft.com/t5/msix/ct-p/MSIX)
 - [Windows Developer Discord](https://aka.ms/windowsdevelopers)
 
